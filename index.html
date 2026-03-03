@@ -21,7 +21,6 @@
   --you2:#6b4bff;
 }
 
-/* Reset */
 *{box-sizing:border-box;}
 html,body{height:100%;}
 
@@ -46,7 +45,7 @@ body{
 /* Desktop collapse */
 body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
-/* Sidebar base */
+/* Sidebar */
 .sidebar{
   border-right:1px solid var(--border);
   background:rgba(11,15,22,.55);
@@ -56,15 +55,12 @@ body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
   flex-direction:column;
   gap:12px;
   overflow:hidden;
-
   transform: translateX(0);
   transition: transform .22s ease;
 }
-
-/* Desktop hidden */
 body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 
-/* Overlay (mobile drawer) */
+/* Overlay */
 .overlay{
   position:fixed;
   inset:0;
@@ -75,12 +71,12 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   z-index:40;
 }
 
-/* MOBILE floating book button (top-right) */
-.bookBtnMobile{
+/* ✅ Book button TOP RIGHT (both mobile + desktop) */
+.bookBtn{
   position:fixed;
   right:14px;
   top:14px;
-  z-index:70;
+  z-index:80;
 
   width:46px;
   height:46px;
@@ -90,13 +86,13 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   color:var(--text);
   cursor:pointer;
 
-  display:none; /* shown only on mobile via media query */
+  display:flex;
   align-items:center;
   justify-content:center;
 
   box-shadow: 0 10px 30px rgba(0,0,0,.30);
 }
-.bookBtnMobile:hover{ background:rgba(20,29,46,.78); }
+.bookBtn:hover{ background:rgba(20,29,46,.78); }
 
 /* Sidebar content */
 .brand{
@@ -194,11 +190,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
 /* Main */
-.main{
-  height:100%;
-  display:flex;
-  flex-direction:column;
-}
+.main{height:100%;display:flex;flex-direction:column;}
 
 /* Topbar */
 .topbar{
@@ -206,17 +198,14 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   border-bottom:1px solid var(--border);
   backdrop-filter:blur(10px);
   background:rgba(11,15,22,.55);
+  /* gives room so the top-right book doesn’t feel cramped */
+  padding-right:74px;
 }
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
 
-/* Chat area */
-.chatWrap{
-  flex:1;
-  overflow:hidden;
-  position:relative;
-}
-
+/* Chat */
+.chatWrap{flex:1;overflow:hidden;position:relative;}
 .chat{
   height:100%;
   overflow-y:auto;
@@ -251,7 +240,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   border-bottom-left-radius:8px;
 }
 
-/* Composer — fixed */
+/* Composer fixed */
 .composer{
   position:fixed;
   left:0; right:0;
@@ -270,22 +259,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   gap:10px;
   align-items:flex-end;
 }
-
-/* DESKTOP book button (beside input) */
-.bookBtnDesktop{
-  width:44px;
-  height:44px;
-  border-radius:16px;
-  border:1px solid var(--border);
-  background:rgba(20,29,46,.60);
-  color:var(--text);
-  cursor:pointer;
-
-  display:flex;              /* visible on desktop */
-  align-items:center;
-  justify-content:center;
-}
-.bookBtnDesktop:hover{ background:rgba(20,29,46,.78); }
 
 textarea{
   flex:1;
@@ -320,7 +293,7 @@ textarea{
 .dot:nth-child(3){animation-delay:.3s;}
 @keyframes b{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-4px);opacity:1}}
 
-/* Cursor for linear typing */
+/* Cursor */
 .cursor{
   display:inline-block;
   width:10px;
@@ -332,7 +305,7 @@ textarea{
   50.01%,100%{opacity:0;}
 }
 
-/* --------- MOBILE --------- */
+/* Mobile */
 @media (max-width: 900px){
   .main{ height:100dvh; }
 
@@ -358,11 +331,8 @@ textarea{
   .bubble{ max-width:88%; }
   .chat{ padding-bottom: 190px; }
 
-  /* show mobile floating book button */
-  .bookBtnMobile{ display:flex; }
-
-  /* hide desktop book button inside composer on mobile */
-  .bookBtnDesktop{ display:none; }
+  /* keep book button clear of browser UI */
+  .bookBtn{ top:12px; right:12px; }
 }
 </style>
 </head>
@@ -371,8 +341,8 @@ textarea{
 
 <div class="overlay" id="overlay"></div>
 
-<!-- Mobile button (top-right) -->
-<button class="bookBtnMobile" id="bookBtnMobile" title="Open chat storage">📖</button>
+<!-- ✅ One book button for ALL devices (top-right) -->
+<button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
 
 <div class="app">
 
@@ -404,12 +374,9 @@ textarea{
 
 </div>
 
-<!-- Composer fixed outside layout -->
+<!-- Composer -->
 <div class="composer">
   <div class="composerInner">
-    <!-- Desktop button beside input -->
-    <button class="bookBtnDesktop" id="bookBtnDesktop" title="Open chat storage">📖</button>
-
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
     <button class="send" id="sendBtn">Send</button>
   </div>
@@ -428,10 +395,8 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
-
 const overlay = document.getElementById("overlay");
-const bookBtnMobile = document.getElementById("bookBtnMobile");
-const bookBtnDesktop = document.getElementById("bookBtnDesktop");
+const bookBtn = document.getElementById("bookBtn");
 
 /* Sidebar controls */
 function openSidebar(){
@@ -447,8 +412,7 @@ function toggleSidebar(){
   else openSidebar();
 }
 
-bookBtnMobile.addEventListener("click", toggleSidebar);
-bookBtnDesktop.addEventListener("click", toggleSidebar);
+bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
 /* Helpers */
@@ -465,7 +429,6 @@ function saveAllChats(chats){ localStorage.setItem(LS_KEY, JSON.stringify(chats)
 function setActiveChatId(id){ localStorage.setItem(LS_ACTIVE, id); }
 function getActiveChatId(){ return localStorage.getItem(LS_ACTIVE); }
 
-/* System prompt */
 function systemText(){
   return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
@@ -590,8 +553,6 @@ function renderChatList(){
       setActiveChatId(activeChatId);
       renderChatList();
       renderChatMessages();
-
-      // close drawer on mobile after choosing
       if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
     };
 
