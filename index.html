@@ -11,15 +11,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
 
 <style>
-/* Hide scrollbar but allow scrolling */
-.chat {
-  scrollbar-width: none;       /* Firefox */
-  -ms-overflow-style: none;    /* IE/Edge */
-}
-
-.chat::-webkit-scrollbar {
-  display: none;               /* Chrome/Safari */
-}
 :root{
   --bg:#0b0f16;
   --panel:#141d2e;
@@ -41,7 +32,7 @@ body{
     radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
     var(--bg);
   color:var(--text);
-  overflow:hidden;
+  overflow:hidden; /* we scroll inside .chat */
 }
 
 /* Desktop layout */
@@ -49,6 +40,9 @@ body{
   height:100%;
   display:grid;
   grid-template-columns: 280px 1fr;
+
+  /* ✅ helps scroll containers inside grid */
+  min-height:0;
 }
 
 /* Desktop collapse */
@@ -80,7 +74,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   z-index:40;
 }
 
-/* ✅ Book button TOP RIGHT (both mobile + desktop) */
+/* Book button */
 .bookBtn{
   position:fixed;
   right:14px;
@@ -199,7 +193,14 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
 /* Main */
-.main{height:100%;display:flex;flex-direction:column;}
+.main{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+
+  /* ✅ critical for scroll to work in flex */
+  min-height:0;
+}
 
 /* Topbar */
 .topbar{
@@ -207,14 +208,22 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   border-bottom:1px solid var(--border);
   backdrop-filter:blur(10px);
   background:rgba(11,15,22,.55);
-  /* gives room so the top-right book doesn’t feel cramped */
   padding-right:74px;
 }
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
 
-/* Chat */
-.chatWrap{flex:1;overflow:hidden;position:relative;}
+/* Chat wrapper */
+.chatWrap{
+  flex:1;
+  overflow:hidden;
+  position:relative;
+
+  /* ✅ critical for scroll to work */
+  min-height:0;
+}
+
+/* Chat scroller */
 .chat{
   height:100%;
   overflow-y:auto;
@@ -222,8 +231,19 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   max-width:980px;
   width:100%;
   margin:0 auto;
-}
 
+  /* ✅ critical for scroll to work */
+  min-height:0;
+
+  /* ✅ hide scrollbar but keep scrolling */
+  scrollbar-width:none;        /* Firefox */
+  -ms-overflow-style:none;     /* old Edge */
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.chat::-webkit-scrollbar{ display:none; } /* Chrome/Safari */
+
+/* Messages */
 .row{display:flex;margin:14px 0;}
 .row.you{justify-content:flex-end;}
 .row.ai{justify-content:flex-start;}
@@ -340,7 +360,6 @@ textarea{
   .bubble{ max-width:88%; }
   .chat{ padding-bottom: 190px; }
 
-  /* keep book button clear of browser UI */
   .bookBtn{ top:12px; right:12px; }
 }
 </style>
@@ -349,8 +368,6 @@ textarea{
 <body class="sidebar-closed">
 
 <div class="overlay" id="overlay"></div>
-
-<!-- ✅ One book button for ALL devices (top-right) -->
 <button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
 
 <div class="app">
@@ -383,7 +400,6 @@ textarea{
 
 </div>
 
-<!-- Composer -->
 <div class="composer">
   <div class="composerInner">
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
@@ -420,7 +436,6 @@ function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
-
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
@@ -442,13 +457,12 @@ function systemText(){
   return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
 
-/* ✅ Advanced insult/threat detection (triggers: reply = 'Why Julian') */
+/* ✅ Advanced insult/threat detection -> reply always 'Why Julian' */
 function isInsultOrThreat(text){
   const norm = (text || "")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
-    // leetspeak-ish swaps
     .replace(/[@]/g, "a")
     .replace(/[!]/g, "i")
     .replace(/[1]/g, "i")
@@ -457,30 +471,28 @@ function isInsultOrThreat(text){
     .replace(/[5]/g, "s")
     .replace(/[7]/g, "t")
     .replace(/[0]/g, "o")
-    // remove punctuation
     .replace(/[^a-z0-9\s]/g, "");
 
   if(!norm) return false;
 
   const directYou = /\b(you|u|ur|youre|ya)\b/.test(norm);
-
   let score = 0;
 
-  // Strong "shut up" variants: shutup / shut the hell up / etc.
-  if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm)) score += 4;
+  // "shut up" variants
+  if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm) || /\bshutup\b/.test(norm)) score += 5;
 
-  // Threats aimed at "you"
-  // Examples: "im gonna kill you", "ima kill u", "going to murder you", "ill hurt you"
+  // Threats aimed at you
   const threatYou = /\b(i|im|ima|i am|ill|i will|gonna|going to|bout to)\s*(?:really\s*)?(kill|murder|hurt|beat|stab|shoot|destroy)\s+(you|u)\b/;
-  if(threatYou.test(norm)) score += 6;
+  if(threatYou.test(norm)) score += 7;
 
-  // "kill yourself" style
-  if(/\bkill\s+yourself\b/.test(norm)) score += 6;
+  // "kill yourself" / "kys"
+  if(/\bkys\b/.test(norm)) score += 7;
+  if(/\bkill\s+yourself\b/.test(norm)) score += 7;
 
-  // If "kill" appears AND it's aimed at you, count it (but don't flag "kill a process")
+  // Only count plain "kill" when it's aimed at you
   if(directYou && /\bkill\b/.test(norm)) score += 3;
 
-  // "gay" ONLY when used as an insult (directed at you) OR the classic "thats gay" insult usage
+  // "gay" only when used as insult at you / "that's gay"
   if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
 
   const profanity = [
@@ -492,30 +504,19 @@ function isInsultOrThreat(text){
     "terrible","awful","worthless","annoying","garbage","lame","cringe",
     "ugly","weak","embarrassing"
   ];
-  const hardPhrases = [
-    "i hate you",
-    "you suck",
-    "kys",
-    "go die",
-    "die"
-  ];
+  const hardPhrases = ["i hate you","you suck","go die","die"];
 
   for(const p of hardPhrases){
     if(norm.includes(p)) score += 3;
   }
-
   for(const w of profanity){
     if(new RegExp(`\\b${w}\\b`).test(norm)) score += 2;
   }
-
   for(const w of insultAdj){
     if(new RegExp(`\\b${w}\\b`).test(norm)) score += 1;
   }
 
-  // "you are ..." style attacks get a boost if any negativity exists
   if(/\b(you|u|ur|youre)\s+(are|r|so)\b/.test(norm) && score > 0) score += 2;
-
-  // If it's clearly directed at "you", bump slightly
   if(directYou && score > 0) score += 1;
 
   return score >= 3;
@@ -717,14 +718,13 @@ async function send(){
   input.value = "";
   autoResize();
 
-  // ✅ If user insults/threatens → ALWAYS "Why Julian" (no Worker call)
+  // ✅ Override (no Worker call)
   if(isInsultOrThreat(msg)){
     const reply = "Why Julian";
-    const aiBubble = addBubble("ai", reply);
+    addBubble("ai", reply);
     c.messages.push({ role:"assistant", content: reply });
     persistAll();
     renderChatList();
-    chatEl.scrollTop = chatEl.scrollHeight;
     return;
   }
 
@@ -749,8 +749,6 @@ async function send(){
   }catch{
     waitingBubble.textContent = "Server error.";
   }
-
-  chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 sendBtn.onclick = send;
