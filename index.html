@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-<head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SpenceAI</title>
 
-<!-- FAVICON -->
 <link rel="icon" type="image/png" href="favicon.png">
 
-<!-- GOOGLE FONTS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
@@ -54,7 +51,6 @@ body{
   font-size:20px;
   letter-spacing:-0.5px;
 }
-
 .subtitle{
   font-size:12px;
   color:var(--muted);
@@ -64,7 +60,7 @@ body{
 .chat{
   flex:1;
   overflow-y:auto;
-  padding:30px 20px 120px;
+  padding:30px 20px 140px;
   max-width:900px;
   width:100%;
   margin:0 auto;
@@ -100,6 +96,18 @@ body{
   border-bottom-left-radius:8px;
 }
 
+.imgwrap{
+  margin-top:10px;
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.12);
+}
+.imgwrap img{
+  display:block;
+  max-width:100%;
+  height:auto;
+}
+
 /* Composer */
 .composer{
   position:fixed;
@@ -117,6 +125,7 @@ body{
   margin:0 auto;
   display:flex;
   gap:10px;
+  align-items:flex-end;
 }
 
 textarea{
@@ -138,15 +147,36 @@ button{
   background:linear-gradient(135deg,var(--you1),var(--you2));
   border:none;
   border-radius:16px;
-  padding:0 20px;
+  padding:0 16px;
+  height:44px;
   color:white;
   font-weight:600;
   cursor:pointer;
   font-family:'Inter', sans-serif;
+  display:flex;
+  align-items:center;
+  gap:8px;
 }
+
+.iconBtn{
+  width:44px;
+  padding:0;
+  justify-content:center;
+}
+
+.fileHidden{ display:none; }
+
+.attachPreview{
+  max-width:900px;
+  margin:0 auto 10px;
+  padding:0 18px;
+  color:var(--muted);
+  font-size:12px;
+}
+.attachPreview strong{ color: var(--text); }
 </style>
 </head>
-</head>
+
 <body>
 
 <div class="topbar">
@@ -157,7 +187,12 @@ button{
 <div class="chat" id="chat"></div>
 
 <div class="composer">
+  <div class="attachPreview" id="attachPreview" style="display:none;"></div>
+
   <div class="composer-inner">
+    <input class="fileHidden" id="fileInput" type="file" accept="image/*" />
+    <button class="iconBtn" id="imgBtn" title="Attach image">🖼️</button>
+
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
     <button id="sendBtn">Send</button>
   </div>
@@ -169,21 +204,37 @@ const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
+const imgBtn = document.getElementById("imgBtn");
+const fileInput = document.getElementById("fileInput");
+const attachPreview = document.getElementById("attachPreview");
+
+// We'll store the selected image as a Data URL (base64)
+let pendingImage = null; // { name, type, dataUrl, size }
 
 let conversation = [
   {
     role:"system",
-    content:"You are SpenceAI created by Dr Doakes. Be modern, clear, and confident."
+    content:"You are SpenceAI created by Dr Doakes. Be modern, clear, confident, friendly, and use emojis when it fits 😊."
   }
 ];
 
-function addBubble(role,text){
+function addBubble(role,text, imageDataUrl=null){
   const row=document.createElement("div");
   row.className="row "+role;
 
   const bubble=document.createElement("div");
   bubble.className="bubble "+role;
   bubble.textContent=text;
+
+  if(imageDataUrl){
+    const wrap=document.createElement("div");
+    wrap.className="imgwrap";
+    const img=document.createElement("img");
+    img.src=imageDataUrl;
+    img.alt="uploaded image";
+    wrap.appendChild(img);
+    bubble.appendChild(wrap);
+  }
 
   row.appendChild(bubble);
   chat.appendChild(row);
@@ -196,14 +247,71 @@ function autoResize(){
 }
 input.addEventListener("input",autoResize);
 
+imgBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  fileInput.click();
+});
+
+// Read image file into base64
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files?.[0];
+  if(!file) return;
+
+  // Simple size limit to avoid huge payloads (2MB)
+  const maxBytes = 2 * 1024 * 1024;
+  if(file.size > maxBytes){
+    pendingImage = null;
+    attachPreview.style.display="block";
+    attachPreview.innerHTML = "Image too large ❌ Please use an image under <strong>2MB</strong>.";
+    fileInput.value = "";
+    return;
+  }
+
+  const dataUrl = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+  pendingImage = { name:file.name, type:file.type, dataUrl, size:file.size };
+
+  attachPreview.style.display="block";
+  attachPreview.innerHTML = `Attached: <strong>${pendingImage.name}</strong> 🖼️ (will be sent with your next message)`;
+});
+
 async function send(){
   const msg=input.value.trim();
-  if(!msg) return;
 
-  addBubble("you",msg);
-  conversation.push({role:"user",content:msg});
+  // Don't send empty message if no image attached
+  if(!msg && !pendingImage) return;
+
+  // Show user's message bubble; include image preview if attached
+  addBubble("you", msg || "(image)", pendingImage?.dataUrl || null);
+
+  // Push user message to conversation
+  // If an image is attached, we also include a short text hint for the AI
+  const userContent = pendingImage
+    ? `${msg ? msg + "\n\n" : ""}[User attached an image: ${pendingImage.name}. If you can't view images, ask the user to describe it.]`
+    : msg;
+
+  conversation.push({ role:"user", content:userContent });
+
+  // Clear input
   input.value="";
   autoResize();
+
+  // Prepare payload (we send image too, even though model can't see yet)
+  const payload = { messages: conversation };
+  if(pendingImage){
+    payload.image = pendingImage; // Worker will handle safely
+  }
+
+  // Clear attachment UI
+  pendingImage = null;
+  fileInput.value = "";
+  attachPreview.style.display="none";
+  attachPreview.textContent = "";
 
   const thinking=document.createElement("div");
   thinking.className="row ai";
@@ -214,7 +322,7 @@ async function send(){
     const res=await fetch(WORKER_URL,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({messages:conversation})
+      body:JSON.stringify(payload)
     });
 
     const data=await res.json();
@@ -238,7 +346,7 @@ input.addEventListener("keydown",e=>{
   }
 });
 
-addBubble("ai","I'm SpenceAI. What are we working on?");
+addBubble("ai","I'm SpenceAI 😊 You can now attach an image with the 🖼️ button. I might ask you to describe it (text-only model for now).");
 </script>
 
 </body>
