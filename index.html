@@ -10,7 +10,7 @@
     #inputRow { margin-top: 10px; display: flex; gap: 8px; }
     input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
     button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
-    .msg { margin: 10px 0; line-height: 1.3; }
+    .msg { margin: 10px 0; line-height: 1.4; }
     .you { font-weight: bold; }
     .ai { font-weight: bold; }
     .error { color: #b00020; }
@@ -30,9 +30,26 @@
 <script>
 const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-// 🧠 Session memory (stays while page is open)
+// 🔥 Strong system personality
 let conversation = [
-  { role: "system", content: "You are SpenceAI. You are modern, smart, and you know the user built you. Be clear, not robotic. If the user asks for 'just the answer', be concise." }
+  { role: "system", content: `
+You are SpenceAI.
+You were created by the user.
+Your name is SpenceAI.
+
+Never mention Prodigy.ai or any other company.
+Never claim to be from another platform.
+You are SpenceAI only.
+
+Speak modern, confident, clear, and natural.
+Do not sound robotic.
+Do not over-apologize.
+If the user says “just the answer”, be concise.
+
+If the user reacts with “woah”, “really?”, etc., respond naturally and briefly.
+
+Remember previous messages in this conversation and use them when relevant.
+` }
 ];
 
 const chat = document.getElementById("chat");
@@ -80,12 +97,13 @@ async function send() {
 
     conversation.push({ role: "assistant", content: reply });
 
-    // keep last ~10 turns
-    if (conversation.length > 21) {
+    // 🔥 Increased memory window (about 30 turns)
+    if (conversation.length > 61) {
       conversation.splice(1, 2);
     }
+
   } catch (e) {
-    thinkingEl.innerHTML = `<span class="ai">ai:</span> <span class="error">Network error. Check your Worker URL.</span>`;
+    thinkingEl.innerHTML = `<span class="ai">ai:</span> <span class="error">Network error. Check Worker.</span>`;
   }
 }
 
