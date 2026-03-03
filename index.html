@@ -6,50 +6,105 @@
 <title>SpenceAI</title>
 
 <style>
-body{
-  margin:0;
-  font-family: Arial;
-  background:#0b0f16;
-  color:white;
-  display:flex;
-  flex-direction:column;
-  height:100vh;
+:root{
+  --bg:#0b0f16;
+  --panel:#141d2e;
+  --border:#1f2a3a;
+  --text:#e8eefc;
+  --muted:#a7b2c8;
+  --you1:#2b6cff;
+  --you2:#6b4bff;
 }
 
+*{box-sizing:border-box;}
+html,body{height:100%;}
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background:
+    radial-gradient(1200px 700px at 25% -10%, rgba(43,108,255,.20), transparent 60%),
+    radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+}
+
+/* Top bar */
+.topbar{
+  padding:16px 24px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(8px);
+  background:rgba(11,15,22,.6);
+}
+
+.title{
+  font-weight:700;
+  font-size:18px;
+}
+
+.subtitle{
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Chat area */
 .chat{
   flex:1;
   overflow-y:auto;
-  padding:20px;
+  padding:30px 20px 120px;
   max-width:900px;
-  margin:auto;
   width:100%;
+  margin:0 auto;
 }
+
+.row{
+  display:flex;
+  margin:14px 0;
+}
+
+.row.you{justify-content:flex-end;}
+.row.ai{justify-content:flex-start;}
 
 .bubble{
-  padding:12px 14px;
-  border-radius:16px;
-  margin:10px 0;
+  padding:14px 16px;
+  border-radius:18px;
   max-width:80%;
+  line-height:1.45;
   white-space:pre-wrap;
+  word-wrap:break-word;
 }
 
-.you{
-  background:linear-gradient(135deg,#2b6cff,#6b4bff);
-  margin-left:auto;
+.bubble.you{
+  background:linear-gradient(135deg,var(--you1),var(--you2));
+  color:white;
+  border-bottom-right-radius:8px;
 }
 
-.ai{
-  background:#1a2333;
+.bubble.ai{
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.08);
+  border-bottom-left-radius:8px;
 }
 
+/* Composer */
 .composer{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  padding:18px;
+  border-top:1px solid rgba(255,255,255,.06);
+  background:rgba(11,15,22,.7);
+  backdrop-filter:blur(10px);
+}
+
+.composer-inner{
+  max-width:900px;
+  margin:0 auto;
   display:flex;
   gap:10px;
-  padding:15px;
-  border-top:1px solid #222;
-  max-width:900px;
-  margin:auto;
-  width:100%;
 }
 
 textarea{
@@ -57,31 +112,40 @@ textarea{
   resize:none;
   border:none;
   outline:none;
+  border-radius:18px;
+  padding:12px 14px;
   background:#1a2333;
   color:white;
-  border-radius:14px;
-  padding:10px;
   min-height:40px;
-  max-height:200px;
+  max-height:180px;
+  overflow:auto;
 }
 
 button{
-  background:linear-gradient(135deg,#2b6cff,#6b4bff);
+  background:linear-gradient(135deg,var(--you1),var(--you2));
   border:none;
-  color:white;
+  border-radius:16px;
   padding:0 20px;
-  border-radius:14px;
+  color:white;
+  font-weight:600;
   cursor:pointer;
 }
 </style>
 </head>
 <body>
 
+<div class="topbar">
+  <div class="title">SpenceAI</div>
+  <div class="subtitle">Dark mode • Memory in-session</div>
+</div>
+
 <div class="chat" id="chat"></div>
 
 <div class="composer">
-  <textarea id="input" placeholder="Message SpenceAI..."></textarea>
-  <button id="send">Send</button>
+  <div class="composer-inner">
+    <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+    <button id="sendBtn">Send</button>
+  </div>
 </div>
 
 <script>
@@ -89,72 +153,68 @@ const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const sendBtn = document.getElementById("send");
+const sendBtn = document.getElementById("sendBtn");
 
 let conversation = [
   {
-    role: "system",
-    content:
-      "You are SpenceAI created by Dr Doakes. You can write essays, stories, explanations, and code. If asked for 500 words, write around 500 words with intro, body, and conclusion."
+    role:"system",
+    content:"You are SpenceAI created by Dr Doakes. Be modern, clear, and confident."
   }
 ];
 
-function add(role,text){
-  const div = document.createElement("div");
-  div.className = "bubble " + role;
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+function addBubble(role,text){
+  const row=document.createElement("div");
+  row.className="row "+role;
+
+  const bubble=document.createElement("div");
+  bubble.className="bubble "+role;
+  bubble.textContent=text;
+
+  row.appendChild(bubble);
+  chat.appendChild(row);
+  chat.scrollTop=chat.scrollHeight;
 }
 
 function autoResize(){
   input.style.height="auto";
   input.style.height=input.scrollHeight+"px";
 }
-
 input.addEventListener("input",autoResize);
 
 async function send(){
-  const msg = input.value.trim();
+  const msg=input.value.trim();
   if(!msg) return;
 
-  add("you",msg);
+  addBubble("you",msg);
   conversation.push({role:"user",content:msg});
   input.value="";
   autoResize();
 
-  const thinking = document.createElement("div");
-  thinking.className="bubble ai";
-  thinking.textContent="...";
+  const thinking=document.createElement("div");
+  thinking.className="row ai";
+  thinking.innerHTML='<div class="bubble ai">...</div>';
   chat.appendChild(thinking);
 
   try{
-    const res = await fetch(WORKER_URL,{
+    const res=await fetch(WORKER_URL,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({messages:conversation})
     });
 
-    const text = await res.text();
-
-    if(!res.ok){
-      thinking.textContent = "Server error: " + res.status + " " + text;
-      return;
-    }
-
-    const data = JSON.parse(text);
-    const reply = data.reply || "(no reply)";
-    thinking.textContent = reply;
+    const data=await res.json();
+    const reply=data.reply || "(no reply)";
+    thinking.querySelector(".bubble").textContent=reply;
 
     conversation.push({role:"assistant",content:reply});
   }catch{
-    thinking.textContent="Network error.";
+    thinking.querySelector(".bubble").textContent="Server error.";
   }
 
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop=chat.scrollHeight;
 }
 
-sendBtn.onclick = send;
+sendBtn.onclick=send;
 
 input.addEventListener("keydown",e=>{
   if(e.key==="Enter" && !e.shiftKey){
@@ -163,7 +223,7 @@ input.addEventListener("keydown",e=>{
   }
 });
 
-add("ai","I'm SpenceAI. What are we working on?");
+addBubble("ai","I'm SpenceAI. What are we working on?");
 </script>
 
 </body>
