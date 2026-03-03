@@ -30,7 +30,7 @@
 <script>
 const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-// 🧠 Store memory in the browser while the page is open
+// 🧠 Session memory (stays while page is open)
 let conversation = [
   { role: "system", content: "You are SpenceAI. You are modern, smart, and you know the user built you. Be clear, not robotic. If the user asks for 'just the answer', be concise." }
 ];
@@ -39,7 +39,7 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 
-function add(role, text, extraClass="") {
+function add(role, text, extraClass = "") {
   const div = document.createElement("div");
   div.className = `msg ${extraClass}`.trim();
   div.innerHTML = `<span class="${role}">${role}:</span> ${text}`;
@@ -63,7 +63,7 @@ async function send() {
   try {
     const res = await fetch(WORKER_URL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: conversation })
     });
 
@@ -80,7 +80,7 @@ async function send() {
 
     conversation.push({ role: "assistant", content: reply });
 
-    // keep it from growing forever (last ~10 turns)
+    // keep last ~10 turns
     if (conversation.length > 21) {
       conversation.splice(1, 2);
     }
@@ -89,7 +89,7 @@ async function send() {
   }
 }
 
-sendBtn.onclick = send;
+sendBtn.addEventListener("click", send);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
