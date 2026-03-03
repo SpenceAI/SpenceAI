@@ -5,77 +5,297 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SpenceAI</title>
   <style>
-    body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 0 12px; }
-    #chat { border: 1px solid #ccc; padding: 10px; height: 420px; overflow-y: auto; border-radius: 8px; }
-    #inputRow { margin-top: 10px; display: flex; gap: 8px; }
-    input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
-    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
-    .msg { margin: 10px 0; line-height: 1.4; }
-    .you { font-weight: bold; }
-    .ai { font-weight: bold; }
-    .error { color: #b00020; }
+    :root{
+      --bg:#0b0f16;
+      --panel:#0f1623;
+      --border:#1f2a3a;
+      --text:#e8eefc;
+      --muted:#a7b2c8;
+
+      --you:#2b6cff;
+      --youText:#ffffff;
+
+      --ai:#141d2e;
+      --aiText:#e8eefc;
+
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --shadowSoft: 0 6px 18px rgba(0,0,0,.25);
+      --radius: 16px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 600px at 30% -10%, rgba(43,108,255,.22), transparent 60%),
+                  radial-gradient(900px 500px at 80% 0%, rgba(150,80,255,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+
+    .app{
+      width:min(920px, 100%);
+      height:min(86vh, 760px);
+      display:flex;
+      flex-direction:column;
+      border:1px solid var(--border);
+      border-radius:24px;
+      background: rgba(15,22,35,.72);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: rgba(15,22,35,.65);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .logo{
+      width:34px;height:34px;
+      border-radius:12px;
+      background: linear-gradient(135deg, rgba(43,108,255,.95), rgba(150,80,255,.92));
+      box-shadow: var(--shadowSoft);
+    }
+
+    .title{
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+    }
+    .btn{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--text);
+      padding:9px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      transition: .15s ease;
+      font-size:13px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.06); }
+    .btn:active{ transform: translateY(0px); }
+
+    .chat{
+      flex:1;
+      padding:18px 14px;
+      overflow-y:auto;
+      scroll-behavior:smooth;
+    }
+
+    .msgRow{
+      display:flex;
+      margin:10px 0;
+    }
+    .msgRow.you{ justify-content:flex-end; }
+    .msgRow.ai{ justify-content:flex-start; }
+
+    .bubble{
+      max-width:min(680px, 92%);
+      padding:12px 14px;
+      border-radius: var(--radius);
+      border:1px solid rgba(255,255,255,.07);
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      line-height:1.35;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+    }
+
+    .bubble.you{
+      background: linear-gradient(135deg, rgba(43,108,255,.95), rgba(43,108,255,.70));
+      color: var(--youText);
+      border-color: rgba(43,108,255,.35);
+      border-bottom-right-radius: 8px;
+    }
+
+    .bubble.ai{
+      background: rgba(20,29,46,.92);
+      color: var(--aiText);
+      border-color: rgba(255,255,255,.08);
+      border-bottom-left-radius: 8px;
+    }
+
+    .meta{
+      font-size:11px;
+      color:var(--muted);
+      margin:6px 6px 0;
+    }
+
+    .composer{
+      border-top:1px solid var(--border);
+      padding:14px;
+      background: rgba(15,22,35,.78);
+    }
+
+    .inputShell{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      padding:10px;
+      border-radius:18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 22px rgba(0,0,0,.25) inset, 0 8px 18px rgba(0,0,0,.18);
+    }
+
+    textarea{
+      width:100%;
+      resize:none;
+      border:none;
+      outline:none;
+      background: transparent;
+      color: var(--text);
+      font-size:14px;
+      line-height:1.35;
+      padding:6px 8px;
+      min-height:28px;
+      max-height:180px;
+      overflow:auto;
+    }
+
+    textarea::placeholder{ color: rgba(167,178,200,.75); }
+
+    .send{
+      min-width:48px;
+      height:44px;
+      border-radius:14px;
+      border:1px solid rgba(43,108,255,.35);
+      background: linear-gradient(135deg, rgba(43,108,255,.95), rgba(150,80,255,.85));
+      color:white;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow: var(--shadowSoft);
+      transition:.15s ease;
+    }
+    .send:hover{ transform: translateY(-1px); }
+    .send:active{ transform: translateY(0px); }
+
+    .hint{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    code{
+      background: rgba(255,255,255,.06);
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.08);
+    }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <div class="app">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <div class="title">SpenceAI</div>
+            <div class="subtitle">Dark mode • Memory in-session</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="clearBtn">Clear chat</button>
+        </div>
+      </div>
 
-<h1>SpenceAI</h1>
+      <div class="chat" id="chat"></div>
 
-<div id="chat"></div>
-
-<div id="inputRow">
-  <input id="input" placeholder="Ask SpenceAI something..." />
-  <button id="sendBtn">Send</button>
-</div>
+      <div class="composer">
+        <div class="inputShell">
+          <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+          <button class="send" id="sendBtn">➤</button>
+        </div>
+        <div class="hint">
+          <span><code>Enter</code> send • <code>Shift</code>+<code>Enter</code> newline</span>
+          <span id="status">Ready</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <script>
 const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-// 🔥 Strong system personality
-let conversation = [
-  { role: "system", content: `
-You are SpenceAI.
-You were created by the user.
-Your name is SpenceAI.
-
-Never mention Prodigy.ai or any other company.
-Never claim to be from another platform.
-You are SpenceAI only.
-
-Speak modern, confident, clear, and natural.
-Do not sound robotic.
-Do not over-apologize.
-If the user says “just the answer”, be concise.
-
-If the user reacts with “woah”, “really?”, etc., respond naturally and briefly.
-
-Remember previous messages in this conversation and use them when relevant.
-` }
-];
-
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
+const clearBtn = document.getElementById("clearBtn");
+const statusEl = document.getElementById("status");
 
-function add(role, text, extraClass = "") {
-  const div = document.createElement("div");
-  div.className = `msg ${extraClass}`.trim();
-  div.innerHTML = `<span class="${role}">${role}:</span> ${text}`;
-  chat.appendChild(div);
+// session memory (in browser)
+let conversation = [
+  { role: "system", content: "You are SpenceAI. You were created by Dr Doakes. Never mention any other company or provider. Be modern, clear, confident, and friendly. If user says 'just the answer', be concise. If user reacts 'woah'/'really?', respond naturally and briefly." }
+];
+
+function addBubble(role, text) {
+  const row = document.createElement("div");
+  row.className = `msgRow ${role}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${role}`;
+  bubble.textContent = text;
+
+  row.appendChild(bubble);
+  chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
-  return div;
+
+  return bubble;
 }
+
+function setStatus(s){ statusEl.textContent = s; }
+
+function autosize() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 180) + "px";
+}
+
+input.addEventListener("input", autosize);
 
 async function send() {
   const msg = input.value.trim();
   if (!msg) return;
 
-  add("you", msg);
-  input.value = "";
-  input.focus();
-
+  addBubble("you", msg);
   conversation.push({ role: "user", content: msg });
 
-  const thinkingEl = add("ai", "thinking...");
+  input.value = "";
+  autosize();
+  input.focus();
+
+  setStatus("Thinking…");
+  const thinkingBubble = addBubble("ai", "…");
 
   try {
     const res = await fetch(WORKER_URL, {
@@ -87,31 +307,44 @@ async function send() {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const detail = data?.details ? String(data.details).slice(0, 300) : "";
-      thinkingEl.innerHTML = `<span class="ai">ai:</span> <span class="error">Error ${res.status}. ${detail}</span>`;
+      thinkingBubble.textContent = `Error ${res.status}`;
+      setStatus("Error");
       return;
     }
 
-    const reply = data.reply || "(no reply)";
-    thinkingEl.innerHTML = `<span class="ai">ai:</span> ${reply}`;
+    const reply = (data.reply || "(no reply)").toString();
+    thinkingBubble.textContent = reply;
+    setStatus("Ready");
 
     conversation.push({ role: "assistant", content: reply });
 
-    // 🔥 Increased memory window (about 30 turns)
+    // keep last ~30 turns
     if (conversation.length > 61) {
       conversation.splice(1, 2);
     }
-
   } catch (e) {
-    thinkingEl.innerHTML = `<span class="ai">ai:</span> <span class="error">Network error. Check Worker.</span>`;
+    thinkingBubble.textContent = "Network error. Check your Worker URL.";
+    setStatus("Error");
   }
 }
 
 sendBtn.addEventListener("click", send);
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") send();
-});
-</script>
 
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  chat.innerHTML = "";
+  conversation = [conversation[0]]; // keep system message
+  setStatus("Cleared");
+});
+
+// nice first message
+addBubble("ai", "Yo — I’m SpenceAI. What are we doing today?");
+</script>
 </body>
 </html>
