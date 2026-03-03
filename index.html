@@ -445,28 +445,23 @@ const clearBtn = document.getElementById("clearBtn");
 const modeChill = document.getElementById("modeChill");
 const modePro = document.getElementById("modePro");
 
-let tone = "chill"; // chill | pro
+let tone = "chill";
 
 let conversation = [
   { role:"system", content:"You are SpenceAI created by Dr Doakes. Be modern, clear, and confident." }
 ];
 
-function addBubble(role, text, isTyping=false){
+function addBubble(role){
   const row = document.createElement("div");
   row.className = "row " + role;
 
   const bubble = document.createElement("div");
   bubble.className = "bubble " + role;
 
-  if(isTyping){
-    bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-  } else {
-    bubble.textContent = text;
-  }
-
   row.appendChild(bubble);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
+
   return bubble;
 }
 
@@ -476,35 +471,37 @@ function autoResize(){
 }
 input.addEventListener("input", autoResize);
 
+/* ✨ TYPEWRITER EFFECT */
+async function typeText(element, text, speed = 8){
+  element.textContent = "";
+  for(let i = 0; i < text.length; i++){
+    element.textContent += text[i];
+    chat.scrollTop = chat.scrollHeight;
+    await new Promise(r => setTimeout(r, speed));
+  }
+}
+
 function setTone(next){
   tone = next;
   modeChill.classList.toggle("active", tone === "chill");
   modePro.classList.toggle("active", tone === "pro");
 
-  // update system message inside the conversation
   const base = "You are SpenceAI created by Dr Doakes. Be modern, clear, and confident.";
   const chill = base + " Be warm and friendly. Use emojis naturally when it fits 😊✨.";
   const pro = base + " Be professional, direct, and structured. Use emojis rarely.";
 
   conversation[0] = { role:"system", content: tone === "chill" ? chill : pro };
 }
+
 modeChill.onclick = () => setTone("chill");
 modePro.onclick = () => setTone("pro");
-
-document.querySelectorAll(".qbtn").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    const p = btn.getAttribute("data-prompt") || "";
-    input.value = p;
-    autoResize();
-    input.focus();
-  });
-});
 
 function resetChat(){
   chat.innerHTML = "";
   hero.style.display = "block";
-  conversation = [ conversation[0] ]; // keep current system
-  addBubble("ai","I'm SpenceAI. What are we working on?");
+  conversation = [ conversation[0] ];
+  const bubble = addBubble("ai");
+  bubble.textContent = "I'm SpenceAI. What are we working on?";
 }
 
 newChatBtn.onclick = resetChat;
@@ -516,13 +513,16 @@ async function send(){
 
   hero.style.display = "none";
 
-  addBubble("you", msg);
+  const userBubble = addBubble("you");
+  userBubble.textContent = msg;
+
   conversation.push({ role:"user", content: msg });
 
   input.value = "";
   autoResize();
 
-  const typingBubble = addBubble("ai", "", true);
+  const aiBubble = addBubble("ai");
+  aiBubble.textContent = "";
 
   try{
     const res = await fetch(WORKER_URL, {
@@ -533,11 +533,12 @@ async function send(){
 
     const data = await res.json();
     const reply = data.reply || "(no reply)";
-    typingBubble.textContent = reply;
+
+    await typeText(aiBubble, reply, 8); // speed controls typing speed
 
     conversation.push({ role:"assistant", content: reply });
   }catch{
-    typingBubble.textContent = "Server error.";
+    aiBubble.textContent = "Server error.";
   }
 
   chat.scrollTop = chat.scrollHeight;
@@ -552,16 +553,10 @@ input.addEventListener("keydown", e=>{
   }
 });
 
-// Ctrl+K = new chat
-window.addEventListener("keydown", (e)=>{
-  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
-    e.preventDefault();
-    resetChat();
-  }
-});
-
 setTone("chill");
-addBubble("ai","I'm SpenceAI. What are we working on?");
+
+const firstBubble = addBubble("ai");
+firstBubble.textContent = "I'm SpenceAI. What are we working on?";
 </script>
 
 </body>
