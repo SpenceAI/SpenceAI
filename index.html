@@ -21,6 +21,7 @@
   --you2:#6b4bff;
 }
 
+/* Reset */
 *{box-sizing:border-box;}
 html,body{height:100%;}
 
@@ -35,19 +36,17 @@ body{
   overflow:hidden;
 }
 
-/* App layout */
+/* Desktop layout */
 .app{
   height:100%;
   display:grid;
   grid-template-columns: 280px 1fr;
 }
 
-/* Desktop: sidebar can collapse to 0 */
-body.sidebar-closed .app{
-  grid-template-columns: 0 1fr;
-}
+/* Desktop collapse */
+body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
-/* Sidebar */
+/* Sidebar base */
 .sidebar{
   border-right:1px solid var(--border);
   background:rgba(11,15,22,.55);
@@ -61,11 +60,11 @@ body.sidebar-closed .app{
   transform: translateX(0);
   transition: transform .22s ease;
 }
-body.sidebar-closed .sidebar{
-  transform: translateX(-100%);
-}
 
-/* Overlay (mainly for mobile drawer) */
+/* Desktop hidden */
+body.sidebar-closed .sidebar{ transform: translateX(-100%); }
+
+/* Overlay (used on mobile only via media query below) */
 .overlay{
   position:fixed;
   inset:0;
@@ -75,17 +74,13 @@ body.sidebar-closed .sidebar{
   transition: opacity .2s ease;
   z-index:40;
 }
-body.sidebar-open.mobile .overlay{
-  opacity:1;
-  pointer-events:auto;
-}
 
 /* Floating book button — ALWAYS visible */
 .bookBtn{
   position:fixed;
   left:14px;
   bottom:16px;
-  z-index:60;
+  z-index:70;
 
   width:48px;
   height:48px;
@@ -103,7 +98,7 @@ body.sidebar-open.mobile .overlay{
 }
 .bookBtn:hover{ background:rgba(20,29,46,.78); }
 
-/* Brand */
+/* Sidebar content */
 .brand{
   display:flex;align-items:center;gap:10px;
   padding:10px 12px;
@@ -199,27 +194,33 @@ body.sidebar-open.mobile .overlay{
 .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
 /* Main */
-.main{height:100%;display:flex;flex-direction:column;}
-
-.topbar{
+.main{
+  height:100%;
   display:flex;
-  align-items:center;
-  justify-content:space-between;
+  flex-direction:column;
+}
+
+/* Topbar */
+.topbar{
   padding:14px 18px;
   border-bottom:1px solid var(--border);
   backdrop-filter:blur(10px);
   background:rgba(11,15,22,.55);
 }
-
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
 
-/* Chat */
-.chatWrap{flex:1;overflow:hidden;position:relative;}
+/* Chat area */
+.chatWrap{
+  flex:1;
+  overflow:hidden;
+  position:relative;
+}
+
 .chat{
   height:100%;
   overflow-y:auto;
-  padding:22px 18px 140px;
+  padding:22px 18px 160px; /* extra space for fixed composer */
   max-width:980px;
   width:100%;
   margin:0 auto;
@@ -239,33 +240,35 @@ body.sidebar-open.mobile .overlay{
   font-size:15px;
   border:1px solid transparent;
 }
-
 .bubble.you{
   background:linear-gradient(135deg,var(--you1),var(--you2));
   color:white;
   border-bottom-right-radius:8px;
 }
-
 .bubble.ai{
   background:rgba(20,29,46,.65);
   border:1px solid var(--border);
   border-bottom-left-radius:8px;
 }
 
-/* Composer */
+/* Composer — FIXED (mobile safe) */
 .composer{
-  position:absolute;
-  left:0; right:0; bottom:0;
-  padding:16px 18px;
+  position:fixed;
+  left:0; right:0;
+  bottom:0;
+  padding:16px 18px calc(16px + env(safe-area-inset-bottom));
   border-top:1px solid var(--border);
-  background:rgba(11,15,22,.72);
+  background:rgba(11,15,22,.82);
   backdrop-filter:blur(12px);
-  z-index:10; /* ensure it stays visible */
+  z-index:60;
 }
 
 .composerInner{
-  max-width:980px;margin:0 auto;
-  display:flex;gap:10px;align-items:flex-end;
+  max-width:980px;
+  margin:0 auto;
+  display:flex;
+  gap:10px;
+  align-items:flex-end;
 }
 
 textarea{
@@ -285,14 +288,16 @@ textarea{
 
 .send{
   height:44px;
-  border:none;border-radius:16px;
+  border:none;
+  border-radius:16px;
   padding:0 18px;
-  color:white;font-weight:700;
+  color:white;
+  font-weight:700;
   cursor:pointer;
   background:linear-gradient(135deg,var(--you1),var(--you2));
 }
 
-/* Typing dots (while waiting for server) */
+/* Typing dots while waiting */
 .dots{display:inline-flex;gap:5px;align-items:center;height:16px;}
 .dot{width:6px;height:6px;border-radius:50%;background:rgba(232,238,252,.8);opacity:.35;animation:b 1s infinite ease-in-out;}
 .dot:nth-child(2){animation-delay:.15s;}
@@ -311,29 +316,44 @@ textarea{
   50.01%,100%{opacity:0;}
 }
 
-/* Mobile drawer behaviour */
+/* --------- MOBILE FIXES --------- */
 @media (max-width: 900px){
-  .app{ grid-template-columns: 0 1fr; } /* start closed */
+  /* Use mobile-safe viewport height */
+  .main{ height:100dvh; }
+
+  /* App becomes single-column */
+  .app{
+    display:block;
+    height:100dvh;
+  }
+
+  /* Sidebar becomes off-canvas drawer */
   .sidebar{
     position:fixed;
-    left:0; top:0; bottom:0;
-    width: min(86vw, 320px);
-    z-index:50;
+    top:0; bottom:0; left:0;
+    width:min(86vw, 320px);
+    z-index:55;
+    transform: translateX(-110%);
   }
-  body.sidebar-open.mobile .sidebar{ transform: translateX(0); }
-  body.sidebar-closed.mobile .sidebar{ transform: translateX(-110%); }
 
-  /* keep bubbles readable */
+  body.sidebar-open .sidebar{ transform: translateX(0); }
+  body.sidebar-open .overlay{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  /* bubbles wider */
   .bubble{ max-width:88%; }
+
+  /* give chat bottom space for fixed composer */
+  .chat{ padding-bottom: 190px; }
 }
 </style>
 </head>
 
-<body class="sidebar-open">
+<body class="sidebar-closed">
 
 <div class="overlay" id="overlay"></div>
-
-<!-- Always-visible toggle -->
 <button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
 
 <div class="app">
@@ -355,24 +375,23 @@ textarea{
 
   <main class="main">
     <header class="topbar">
-      <div>
-        <div class="title">SpenceAI</div>
-        <div class="subtitle">Dark mode • Saved chats</div>
-      </div>
+      <div class="title">SpenceAI</div>
+      <div class="subtitle">Dark mode • Saved chats</div>
     </header>
 
     <section class="chatWrap">
       <div class="chat" id="chat"></div>
-
-      <div class="composer">
-        <div class="composerInner">
-          <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-          <button class="send" id="sendBtn">Send</button>
-        </div>
-      </div>
     </section>
   </main>
 
+</div>
+
+<!-- Composer fixed outside layout so it never disappears -->
+<div class="composer">
+  <div class="composerInner">
+    <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+    <button class="send" id="sendBtn">Send</button>
+  </div>
 </div>
 
 <script>
@@ -388,51 +407,27 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
-
 const bookBtn = document.getElementById("bookBtn");
 const overlay = document.getElementById("overlay");
 
-/* Mobile detection */
-function isMobile(){ return window.matchMedia("(max-width: 900px)").matches; }
-function setMobileFlag(){ document.body.classList.toggle("mobile", isMobile()); }
-
-/* Sidebar control */
+/* Sidebar controls */
 function openSidebar(){
   document.body.classList.add("sidebar-open");
   document.body.classList.remove("sidebar-closed");
   bookBtn.title = "Close chat storage";
 }
-
 function closeSidebar(){
   document.body.classList.add("sidebar-closed");
   document.body.classList.remove("sidebar-open");
   bookBtn.title = "Open chat storage";
 }
-
 function toggleSidebar(){
-  const open = document.body.classList.contains("sidebar-open");
-  if(open) closeSidebar();
+  if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
 
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
-
-/* Default: desktop OPEN, mobile CLOSED */
-function applyDefaultSidebar(){
-  setMobileFlag();
-  if(isMobile()) closeSidebar();
-  else openSidebar();
-}
-
-window.addEventListener("resize", ()=>{
-  const wasMobile = document.body.classList.contains("mobile");
-  setMobileFlag();
-  const nowMobile = document.body.classList.contains("mobile");
-  if(wasMobile !== nowMobile){
-    applyDefaultSidebar();
-  }
-});
 
 /* Helpers */
 const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
@@ -448,7 +443,7 @@ function saveAllChats(chats){ localStorage.setItem(LS_KEY, JSON.stringify(chats)
 function setActiveChatId(id){ localStorage.setItem(LS_ACTIVE, id); }
 function getActiveChatId(){ return localStorage.getItem(LS_ACTIVE); }
 
-/* System prompt (single style) */
+/* System prompt */
 function systemText(){
   return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
@@ -487,7 +482,7 @@ function addBubble(role, text, isTyping=false){
 
   if(isTyping){
     bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-  }else{
+  } else {
     bubble.textContent = text;
   }
 
@@ -573,7 +568,8 @@ function renderChatList(){
       setActiveChatId(activeChatId);
       renderChatList();
       renderChatMessages();
-      if(isMobile()) closeSidebar();
+      // close drawer after choosing a chat on mobile
+      if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
     };
 
     chatListEl.appendChild(item);
@@ -603,9 +599,8 @@ function newChat(){
   persistAll();
   renderChatList();
   renderChatMessages();
-  if(isMobile()) closeSidebar();
+  if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
 }
-
 newChatBtn.onclick = newChat;
 
 window.addEventListener("keydown", (e)=>{
@@ -615,28 +610,21 @@ window.addEventListener("keydown", (e)=>{
   }
 });
 
-/* ---- Linear typing (typewriter) ---- */
+/* Linear typing */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function typewriter(el, text, speed=10){
-  // speed: lower = faster
   el.innerHTML = "";
   const cursor = document.createElement("span");
   cursor.className = "cursor";
   cursor.textContent = "▍";
   el.appendChild(cursor);
 
-  // type
   for(let i=0; i<text.length; i++){
     cursor.insertAdjacentText("beforebegin", text[i]);
     chatEl.scrollTop = chatEl.scrollHeight;
-
-    // smoother: small randomness
-    const jitter = Math.random() * 8;
-    await sleep(speed + jitter);
+    await sleep(speed + Math.random()*8);
   }
-
-  // remove cursor at end
   cursor.remove();
 }
 
@@ -669,7 +657,6 @@ async function send(){
     const data = await res.json();
     const reply = data.reply || "(no reply)";
 
-    // swap dots bubble into a normal bubble and type it out
     waitingBubble.innerHTML = "";
     await typewriter(waitingBubble, reply, 10);
 
@@ -692,7 +679,6 @@ input.addEventListener("keydown", e=>{
 });
 
 /* Boot */
-applyDefaultSidebar();
 renderChatList();
 renderChatMessages();
 </script>
