@@ -27,7 +27,7 @@ html,body{height:100%;}
 
 body{
   margin:0;
-  font-family: 'Inter', ui-sans-serif, system-ui;
+  font-family:'Inter', ui-sans-serif, system-ui;
   background:
     radial-gradient(1200px 700px at 25% -10%, rgba(43,108,255,.20), transparent 60%),
     radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
@@ -51,6 +51,7 @@ body{
   font-size:20px;
   letter-spacing:-0.5px;
 }
+
 .subtitle{
   font-size:12px;
   color:var(--muted);
@@ -70,7 +71,6 @@ body{
   display:flex;
   margin:14px 0;
 }
-
 .row.you{justify-content:flex-end;}
 .row.ai{justify-content:flex-start;}
 
@@ -208,60 +208,54 @@ const imgBtn = document.getElementById("imgBtn");
 const fileInput = document.getElementById("fileInput");
 const attachPreview = document.getElementById("attachPreview");
 
-// We'll store the selected image as a Data URL (base64)
 let pendingImage = null; // { name, type, dataUrl, size }
 
 let conversation = [
-  {
-    role:"system",
-    content:"You are SpenceAI created by Dr Doakes. Be modern, clear, confident, friendly, and use emojis when it fits 😊."
-  }
+  { role:"system", content:"You are SpenceAI created by Dr Doakes. Be modern, clear, confident, friendly, and use emojis when it fits 😊." }
 ];
 
-function addBubble(role,text, imageDataUrl=null){
-  const row=document.createElement("div");
-  row.className="row "+role;
+function addBubble(role, text, imageDataUrl=null){
+  const row = document.createElement("div");
+  row.className = "row " + role;
 
-  const bubble=document.createElement("div");
-  bubble.className="bubble "+role;
-  bubble.textContent=text;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble " + role;
+  bubble.textContent = text;
 
-  if(imageDataUrl){
-    const wrap=document.createElement("div");
-    wrap.className="imgwrap";
-    const img=document.createElement("img");
-    img.src=imageDataUrl;
-    img.alt="uploaded image";
+  if (imageDataUrl){
+    const wrap = document.createElement("div");
+    wrap.className = "imgwrap";
+    const img = document.createElement("img");
+    img.src = imageDataUrl;
+    img.alt = "uploaded image";
     wrap.appendChild(img);
     bubble.appendChild(wrap);
   }
 
   row.appendChild(bubble);
   chat.appendChild(row);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
 function autoResize(){
-  input.style.height="auto";
-  input.style.height=input.scrollHeight+"px";
+  input.style.height = "auto";
+  input.style.height = input.scrollHeight + "px";
 }
-input.addEventListener("input",autoResize);
+input.addEventListener("input", autoResize);
 
 imgBtn.addEventListener("click", (e) => {
   e.preventDefault();
   fileInput.click();
 });
 
-// Read image file into base64
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files?.[0];
   if(!file) return;
 
-  // Simple size limit to avoid huge payloads (2MB)
   const maxBytes = 2 * 1024 * 1024;
   if(file.size > maxBytes){
     pendingImage = null;
-    attachPreview.style.display="block";
+    attachPreview.style.display = "block";
     attachPreview.innerHTML = "Image too large ❌ Please use an image under <strong>2MB</strong>.";
     fileInput.value = "";
     return;
@@ -276,77 +270,72 @@ fileInput.addEventListener("change", async () => {
 
   pendingImage = { name:file.name, type:file.type, dataUrl, size:file.size };
 
-  attachPreview.style.display="block";
-  attachPreview.innerHTML = `Attached: <strong>${pendingImage.name}</strong> 🖼️ (will be sent with your next message)`;
+  attachPreview.style.display = "block";
+  attachPreview.innerHTML = `Attached: <strong>${pendingImage.name}</strong> 🖼️`;
 });
 
 async function send(){
-  const msg=input.value.trim();
-
-  // Don't send empty message if no image attached
+  const msg = input.value.trim();
   if(!msg && !pendingImage) return;
 
-  // Show user's message bubble; include image preview if attached
+  // Show user bubble (with image preview if attached)
   addBubble("you", msg || "(image)", pendingImage?.dataUrl || null);
 
-  // Push user message to conversation
-  // If an image is attached, we also include a short text hint for the AI
-  const userContent = pendingImage
-    ? `${msg ? msg + "\n\n" : ""}[User attached an image: ${pendingImage.name}. If you can't view images, ask the user to describe it.]`
-    : msg;
+  // Build the text that goes to the model
+  // Key: make it VERY clear it cannot see images, so it won't guess.
+  let userContent = msg || "";
+  if (pendingImage) {
+    userContent += `${userContent ? "\n\n" : ""}[Image attached: ${pendingImage.name}. You cannot view images. Do NOT guess what's in it. Ask me to describe it or paste text from it.]`;
+  }
 
-  conversation.push({ role:"user", content:userContent });
+  conversation.push({ role:"user", content: userContent });
 
-  // Clear input
-  input.value="";
+  input.value = "";
   autoResize();
 
-  // Prepare payload (we send image too, even though model can't see yet)
   const payload = { messages: conversation };
-  if(pendingImage){
-    payload.image = pendingImage; // Worker will handle safely
-  }
 
   // Clear attachment UI
   pendingImage = null;
   fileInput.value = "";
-  attachPreview.style.display="none";
+  attachPreview.style.display = "none";
   attachPreview.textContent = "";
 
-  const thinking=document.createElement("div");
-  thinking.className="row ai";
-  thinking.innerHTML='<div class="bubble ai">...</div>';
+  const thinking = document.createElement("div");
+  thinking.className = "row ai";
+  thinking.innerHTML = '<div class="bubble ai">...</div>';
   chat.appendChild(thinking);
 
   try{
-    const res=await fetch(WORKER_URL,{
+    const res = await fetch(WORKER_URL, {
       method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
     });
 
-    const data=await res.json();
-    const reply=data.reply || "(no reply)";
-    thinking.querySelector(".bubble").textContent=reply;
+    const data = await res.json();
+    const reply = data.reply || "(no reply)";
+    thinking.querySelector(".bubble").textContent = reply;
 
-    conversation.push({role:"assistant",content:reply});
+    conversation.push({ role:"assistant", content: reply });
   }catch{
-    thinking.querySelector(".bubble").textContent="Server error.";
+    thinking.querySelector(".bubble").textContent = "Server error.";
   }
 
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-sendBtn.onclick=send;
+sendBtn.onclick = send;
 
-input.addEventListener("keydown",e=>{
-  if(e.key==="Enter" && !e.shiftKey){
+input.addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
     send();
   }
 });
 
-addBubble("ai","I'm SpenceAI 😊 You can now attach an image with the 🖼️ button. I might ask you to describe it (text-only model for now).");
+// Back to the original intro text (no extra image announcement)
+addBubble("ai","I'm SpenceAI. What are we working on?");
 </script>
 
 </body>
