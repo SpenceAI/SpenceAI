@@ -36,13 +36,9 @@ body{
   overflow:hidden;
 }
 
-/* ---------- Sidebar toggle state ---------- */
-body.sidebar-open .app{
-  grid-template-columns: 280px 1fr;
-}
-body.sidebar-closed .app{
-  grid-template-columns: 0 1fr;
-}
+/* ---------- Sidebar open/close ---------- */
+body.sidebar-open .app{ grid-template-columns: 280px 1fr; }
+body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
 .app{
   height:100%;
@@ -61,18 +57,12 @@ body.sidebar-closed .app{
   flex-direction:column;
   gap:12px;
   overflow:hidden;
-
-  /* slide animation */
   transform: translateX(0);
   transition: transform .22s ease;
 }
+body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 
-/* When closed, slide it away */
-body.sidebar-closed .sidebar{
-  transform: translateX(-100%);
-}
-
-/* Overlay only used on mobile */
+/* Mobile overlay */
 .overlay{
   position:fixed;
   inset:0;
@@ -83,45 +73,9 @@ body.sidebar-closed .sidebar{
   transition: opacity .2s ease;
   z-index: 20;
 }
-body.sidebar-open.mobile .overlay{
-  opacity:1;
-  pointer-events:auto;
-}
+body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
 
-/* ---------- Book button (the "wedge" opener) ---------- */
-.bookBtn{
-  position:fixed;
-  left:14px;
-  top:50%;
-  transform:translateY(-50%);
-  z-index: 40;
-
-  width:44px;
-  height:44px;
-  border-radius:16px;
-  border:1px solid var(--border);
-  background:rgba(20,29,46,.55);
-  color:var(--text);
-  cursor:pointer;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  box-shadow: 0 8px 30px rgba(0,0,0,.35);
-}
-.bookBtn:hover{
-  background:rgba(20,29,46,.75);
-}
-
-/* Hide the book button when sidebar is open on desktop (optional) */
-@media (min-width: 901px){
-  body.sidebar-open:not(.mobile) .bookBtn{
-    opacity:.35;
-  }
-}
-
-/* ---------- Sidebar content ---------- */
+/* ---------- Brand ---------- */
 .brand{
   display:flex;align-items:center;gap:10px;
   padding:10px 12px;
@@ -137,8 +91,15 @@ body.sidebar-open.mobile .overlay{
 .brandTitle{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;}
 .brandSub{font-size:12px;color:var(--muted);margin-top:2px;}
 
+/* ---------- Buttons / rows ---------- */
+.rowBar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
 .sbtn{
-  width:100%;
+  flex:1;
   border:1px solid var(--border);
   background:rgba(20,29,46,.35);
   color:var(--text);
@@ -158,6 +119,20 @@ body.sidebar-open.mobile .overlay{
   padding:3px 8px;border-radius:999px;
 }
 
+/* 📖 Sidebar toggle button (now visible + placed beside New chat) */
+.wedgeBtn{
+  width:44px;height:44px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.35);
+  color:var(--text);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.wedgeBtn:hover{ background:rgba(20,29,46,.55); }
+
 .sectionTitle{
   margin-top:6px;
   font-size:12px;
@@ -165,6 +140,7 @@ body.sidebar-open.mobile .overlay{
   letter-spacing:.2px;
 }
 
+/* ---------- Chat list ---------- */
 .chatList{
   display:flex;
   flex-direction:column;
@@ -218,16 +194,6 @@ body.sidebar-open.mobile .overlay{
 }
 .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
-.about{
-  margin-top:auto;
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:12px;
-  background:rgba(20,29,46,.25);
-}
-.about h4{margin:0 0 6px 0;font-size:13px;font-family:'Sora', sans-serif;}
-.about p{margin:0;color:var(--muted);font-size:12px;line-height:1.35;}
-
 /* ---------- Main ---------- */
 .main{height:100%;display:flex;flex-direction:column;}
 
@@ -260,6 +226,7 @@ body.sidebar-open.mobile .overlay{
   color:white;background:linear-gradient(135deg,var(--you1),var(--you2));
 }
 
+/* Chat */
 .chatWrap{flex:1;overflow:hidden;position:relative;}
 .chat{
   height:100%;
@@ -340,31 +307,22 @@ textarea{
 
 /* ---------- Mobile behaviour ---------- */
 @media (max-width: 900px){
-  .app{ grid-template-columns: 0 1fr; } /* start closed */
+  .app{ grid-template-columns: 0 1fr; }
   .sidebar{
     position:fixed;
     left:0; top:0; bottom:0;
     width: 280px;
     z-index: 30;
-    border-right:1px solid var(--border);
   }
   body.sidebar-open.mobile .sidebar{ transform: translateX(0); }
   body.sidebar-closed.mobile .sidebar{ transform: translateX(-100%); }
-
-  /* move the book button a bit down so it doesn't hit browser UI */
-  .bookBtn{ top:58%; }
-
   .bubble{ max-width:86%; }
 }
 </style>
 </head>
 
 <body>
-<!-- overlay for mobile -->
 <div class="overlay" id="overlay"></div>
-
-<!-- book button -->
-<button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
 
 <div class="app">
 
@@ -377,15 +335,14 @@ textarea{
       </div>
     </div>
 
-    <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
+    <!-- NEW: New chat + 📖 toggle are together -->
+    <div class="rowBar">
+      <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
+      <button class="wedgeBtn" id="wedgeBtn" title="Close storage">📖</button>
+    </div>
 
     <div class="sectionTitle">Your chats</div>
     <div class="chatList" id="chatList"></div>
-
-    <div class="about">
-      <h4>Storage</h4>
-      <p>Chats are saved in your browser (localStorage). Same device + browser = same history.</p>
-    </div>
   </aside>
 
   <main class="main">
@@ -417,11 +374,11 @@ textarea{
 <script>
 const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-/* ---------- Storage Keys ---------- */
+/* Storage */
 const LS_KEY = "spenceai_chats_v1";
 const LS_ACTIVE = "spenceai_active_chat_v1";
 
-/* ---------- DOM ---------- */
+/* DOM */
 const chatEl = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
@@ -429,29 +386,23 @@ const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
 const modeChill = document.getElementById("modeChill");
 const modePro = document.getElementById("modePro");
-
-const bookBtn = document.getElementById("bookBtn");
+const wedgeBtn = document.getElementById("wedgeBtn");
 const overlay = document.getElementById("overlay");
 
-/* ---------- Sidebar state ---------- */
-function isMobile(){
-  return window.matchMedia("(max-width: 900px)").matches;
-}
-
-function setMobileFlag(){
-  document.body.classList.toggle("mobile", isMobile());
-}
+/* Sidebar helpers */
+function isMobile(){ return window.matchMedia("(max-width: 900px)").matches; }
+function setMobileFlag(){ document.body.classList.toggle("mobile", isMobile()); }
 
 function openSidebar(){
   document.body.classList.add("sidebar-open");
   document.body.classList.remove("sidebar-closed");
-  bookBtn.title = "Close chat storage";
+  wedgeBtn.title = "Close storage";
 }
 
 function closeSidebar(){
   document.body.classList.add("sidebar-closed");
   document.body.classList.remove("sidebar-open");
-  bookBtn.title = "Open chat storage";
+  wedgeBtn.title = "Open storage";
 }
 
 function toggleSidebar(){
@@ -460,92 +411,64 @@ function toggleSidebar(){
   else openSidebar();
 }
 
-/* default: desktop open, mobile closed */
+wedgeBtn.addEventListener("click", toggleSidebar);
+overlay.addEventListener("click", closeSidebar);
+
 function applyDefaultSidebar(){
   setMobileFlag();
   if(isMobile()) closeSidebar();
   else openSidebar();
 }
 
-bookBtn.addEventListener("click", toggleSidebar);
-overlay.addEventListener("click", closeSidebar);
-
 window.addEventListener("resize", ()=>{
   const wasMobile = document.body.classList.contains("mobile");
   setMobileFlag();
   const nowMobile = document.body.classList.contains("mobile");
   if(wasMobile !== nowMobile){
-    // switching modes: reset to sensible default
     applyDefaultSidebar();
   }
 });
 
-/* ---------- Helpers ---------- */
+/* Helpers */
 const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
-
-function nowTitle() {
-  const d = new Date();
-  return "New chat • " + d.toLocaleString();
-}
+function nowTitle(){ return "New chat • " + new Date().toLocaleString(); }
 
 function loadAllChats(){
   try {
     const raw = localStorage.getItem(LS_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
+function saveAllChats(chats){ localStorage.setItem(LS_KEY, JSON.stringify(chats)); }
+function setActiveChatId(id){ localStorage.setItem(LS_ACTIVE, id); }
+function getActiveChatId(){ return localStorage.getItem(LS_ACTIVE); }
 
-function saveAllChats(chats){
-  localStorage.setItem(LS_KEY, JSON.stringify(chats));
-}
-
-function setActiveChatId(id){
-  localStorage.setItem(LS_ACTIVE, id);
-}
-
-function getActiveChatId(){
-  return localStorage.getItem(LS_ACTIVE);
-}
-
-/* ---------- Tone / System ---------- */
+/* Tone/system */
 let tone = "chill";
 function systemText(){
   const base = "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly.";
-  if(tone === "pro") return base + " Be professional, direct, and structured. Use emojis rarely.";
-  return base + " Use emojis naturally when it fits 😊✨.";
+  return tone === "pro"
+    ? base + " Be professional, direct, and structured. Use emojis rarely."
+    : base + " Use emojis naturally when it fits 😊✨.";
 }
 
-/* ---------- Current chats ---------- */
+/* Chats */
 let chats = loadAllChats();
 let activeChatId = getActiveChatId();
 
-/* If no chats yet, create one */
 if(!chats.length){
-  const first = {
-    id: uid(),
-    title: nowTitle(),
-    createdAt: Date.now(),
-    messages: [{ role:"system", content: systemText() }]
-  };
+  const first = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
   chats.unshift(first);
   saveAllChats(chats);
   activeChatId = first.id;
   setActiveChatId(activeChatId);
 }
-
-/* If active id missing, use latest */
 if(!activeChatId || !chats.find(c=>c.id===activeChatId)){
   activeChatId = chats[0].id;
   setActiveChatId(activeChatId);
 }
+function getActiveChat(){ return chats.find(c=>c.id===activeChatId); }
 
-function getActiveChat(){
-  return chats.find(c=>c.id===activeChatId);
-}
-
-/* ---------- UI Rendering ---------- */
 function addBubble(role, text, isTyping=false){
   const row = document.createElement("div");
   row.className = "row " + role;
@@ -576,7 +499,6 @@ function renderChatMessages(){
       addBubble(m.role === "assistant" ? "ai" : "you", m.content);
     }
   }
-  chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function renderChatList(){
@@ -602,7 +524,7 @@ function renderChatList(){
     del.title = "Delete";
     del.textContent = "🗑️";
 
-    rename.onclick = (e) => {
+    rename.onclick = (e)=>{
       e.stopPropagation();
       const name = prompt("Rename chat:", c.title || "");
       if(name && name.trim()){
@@ -612,14 +534,13 @@ function renderChatList(){
       }
     };
 
-    del.onclick = (e) => {
+    del.onclick = (e)=>{
       e.stopPropagation();
       if(!confirm("Delete this chat?")) return;
-      chats = chats.filter(x => x.id !== c.id);
-
+      chats = chats.filter(x=>x.id!==c.id);
       if(!chats.length){
-        const newOne = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
-        chats.unshift(newOne);
+        const n = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
+        chats.unshift(n);
       }
       if(activeChatId === c.id){
         activeChatId = chats[0].id;
@@ -636,12 +557,11 @@ function renderChatList(){
     item.appendChild(left);
     item.appendChild(menu);
 
-    item.onclick = () => {
+    item.onclick = ()=>{
       activeChatId = c.id;
       setActiveChatId(activeChatId);
       renderChatList();
       renderChatMessages();
-      // On mobile, close after selecting
       if(isMobile()) closeSidebar();
     };
 
@@ -649,25 +569,16 @@ function renderChatList(){
   }
 }
 
-/* ---------- Input UX ---------- */
 function autoResize(){
   input.style.height = "auto";
   input.style.height = input.scrollHeight + "px";
 }
 input.addEventListener("input", autoResize);
 
-/* ---------- Actions ---------- */
-function persistAll(){
-  saveAllChats(chats);
-}
+function persistAll(){ saveAllChats(chats); }
 
 function newChat(){
-  const c = {
-    id: uid(),
-    title: nowTitle(),
-    createdAt: Date.now(),
-    messages: [{ role:"system", content: systemText() }]
-  };
+  const c = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
   chats.unshift(c);
   activeChatId = c.id;
   setActiveChatId(activeChatId);
@@ -676,7 +587,6 @@ function newChat(){
   renderChatMessages();
   if(isMobile()) closeSidebar();
 }
-
 newChatBtn.onclick = newChat;
 
 window.addEventListener("keydown", (e)=>{
@@ -686,31 +596,25 @@ window.addEventListener("keydown", (e)=>{
   }
 });
 
-/* ---------- Tone toggle ---------- */
 function setTone(next){
   tone = next;
   modeChill.classList.toggle("active", tone === "chill");
   modePro.classList.toggle("active", tone === "pro");
 
   for(const c of chats){
-    if(c.messages?.[0]?.role === "system"){
-      c.messages[0].content = systemText();
-    } else {
-      c.messages = [{role:"system", content: systemText()}, ...(c.messages||[])];
-    }
+    if(c.messages?.[0]?.role === "system") c.messages[0].content = systemText();
+    else c.messages = [{role:"system", content: systemText()}, ...(c.messages||[])];
   }
   persistAll();
 }
-modeChill.onclick = () => setTone("chill");
-modePro.onclick = () => setTone("pro");
+modeChill.onclick = ()=>setTone("chill");
+modePro.onclick = ()=>setTone("pro");
 
-/* ---------- Send ---------- */
 async function send(){
   const msg = input.value.trim();
   if(!msg) return;
 
   const c = getActiveChat();
-
   if(c.title && c.title.startsWith("New chat")){
     c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
   }
@@ -746,13 +650,13 @@ async function send(){
 
 sendBtn.onclick = send;
 input.addEventListener("keydown", e=>{
-  if(e.key === "Enter" && !e.shiftKey){
+  if(e.key==="Enter" && !e.shiftKey){
     e.preventDefault();
     send();
   }
 });
 
-/* ---------- Boot ---------- */
+/* Boot */
 applyDefaultSidebar();
 renderChatList();
 renderChatMessages();
