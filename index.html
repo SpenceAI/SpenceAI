@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SpenceAI</title>
 
-<!-- FAVICON -->
 <link rel="icon" type="image/png" href="favicon.png">
-
-<!-- GOOGLE FONTS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
@@ -17,11 +14,14 @@
 :root{
   --bg:#0b0f16;
   --panel:#141d2e;
-  --border:#1f2a3a;
+  --panel2:#101828;
+  --border:rgba(255,255,255,.08);
   --text:#e8eefc;
   --muted:#a7b2c8;
   --you1:#2b6cff;
   --you2:#6b4bff;
+  --good:#29d58a;
+  --warn:#ffcc66;
 }
 
 *{box-sizing:border-box;}
@@ -29,42 +29,171 @@ html,body{height:100%;}
 
 body{
   margin:0;
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-family:'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
   background:
     radial-gradient(1200px 700px at 25% -10%, rgba(43,108,255,.20), transparent 60%),
     radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
     var(--bg);
   color:var(--text);
+  overflow:hidden;
+}
+
+/* Layout */
+.app{
+  height:100%;
+  display:grid;
+  grid-template-columns: 260px 1fr;
+}
+
+/* Sidebar */
+.sidebar{
+  border-right:1px solid var(--border);
+  background:rgba(11,15,22,.55);
+  backdrop-filter:blur(10px);
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:rgba(20,29,46,.55);
+}
+.logoDot{
+  width:10px;height:10px;border-radius:50%;
+  background:linear-gradient(135deg,var(--you1),var(--you2));
+  box-shadow:0 0 18px rgba(107,75,255,.35);
+}
+.brandTitle{
+  font-family:'Sora', sans-serif;
+  font-weight:700;
+  letter-spacing:-0.4px;
+}
+.brandSub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+.sideBtns{ display:flex; flex-direction:column; gap:10px; }
+
+.sbtn{
+  width:100%;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.35);
+  color:var(--text);
+  border-radius:14px;
+  padding:12px 12px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.sbtn:hover{ background:rgba(20,29,46,.55); }
+
+.badge{
+  font-size:11px;
+  color:var(--muted);
+  border:1px solid var(--border);
+  padding:3px 8px;
+  border-radius:999px;
+}
+
+.about{
+  margin-top:auto;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px;
+  background:rgba(20,29,46,.25);
+}
+.about h4{
+  margin:0 0 6px 0;
+  font-size:13px;
+  font-family:'Sora', sans-serif;
+}
+.about p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.35;
+}
+
+/* Main */
+.main{
+  height:100%;
   display:flex;
   flex-direction:column;
 }
 
-/* Top bar */
+/* Topbar */
 .topbar{
-  padding:16px 24px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  backdrop-filter:blur(8px);
-  background:rgba(11,15,22,.6);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(10px);
+  background:rgba(11,15,22,.55);
 }
 
+.topLeft{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
 .title{
   font-family:'Sora', sans-serif;
   font-weight:700;
-  font-size:20px;
-  letter-spacing:-0.5px;
+  letter-spacing:-0.4px;
+  font-size:18px;
 }
-
 .subtitle{
   font-size:12px;
   color:var(--muted);
 }
 
+.topRight{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.toggle{
+  display:flex;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.35);
+  border-radius:999px;
+  padding:4px;
+}
+.toggle button{
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  padding:8px 10px;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:12px;
+}
+.toggle button.active{
+  color:white;
+  background:linear-gradient(135deg,var(--you1),var(--you2));
+}
+
 /* Chat area */
-.chat{
+.chatWrap{
   flex:1;
+  overflow:hidden;
+  position:relative;
+}
+.chat{
+  height:100%;
   overflow-y:auto;
-  padding:30px 20px 120px;
-  max-width:900px;
+  padding:22px 18px 140px;
+  max-width:980px;
   width:100%;
   margin:0 auto;
 }
@@ -73,18 +202,18 @@ body{
   display:flex;
   margin:14px 0;
 }
-
 .row.you{justify-content:flex-end;}
 .row.ai{justify-content:flex-start;}
 
 .bubble{
   padding:14px 16px;
   border-radius:18px;
-  max-width:80%;
+  max-width:78%;
   line-height:1.5;
   white-space:pre-wrap;
   word-wrap:break-word;
   font-size:15px;
+  border:1px solid transparent;
 }
 
 .bubble.you{
@@ -92,75 +221,216 @@ body{
   color:white;
   border-bottom-right-radius:8px;
 }
-
 .bubble.ai{
-  background:var(--panel);
-  border:1px solid rgba(255,255,255,.08);
+  background:rgba(20,29,46,.65);
+  border:1px solid var(--border);
   border-bottom-left-radius:8px;
 }
 
+/* Welcome / hero */
+.hero{
+  max-width:980px;
+  margin:18px auto 0;
+  padding:0 18px;
+}
+.heroCard{
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.45);
+  border-radius:20px;
+  padding:18px;
+  display:flex;
+  gap:16px;
+  align-items:flex-start;
+}
+.heroGlow{
+  width:46px;height:46px;border-radius:16px;
+  background:linear-gradient(135deg,var(--you1),var(--you2));
+  box-shadow:0 0 35px rgba(107,75,255,.35);
+  flex:none;
+}
+.heroText h2{
+  margin:0;
+  font-family:'Sora', sans-serif;
+  font-size:18px;
+  letter-spacing:-0.4px;
+}
+.heroText p{
+  margin:6px 0 0 0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+}
+.quickGrid{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+.qbtn{
+  border:1px solid var(--border);
+  background:rgba(16,24,40,.55);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:14px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:13px;
+  text-align:left;
+}
+.qbtn span{
+  display:block;
+  color:var(--muted);
+  font-weight:500;
+  font-size:12px;
+  margin-top:3px;
+}
+.qbtn:hover{ background:rgba(16,24,40,.75); }
+
 /* Composer */
 .composer{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  padding:18px;
-  border-top:1px solid rgba(255,255,255,.06);
-  background:rgba(11,15,22,.7);
-  backdrop-filter:blur(10px);
+  position:absolute;
+  left:0; right:0; bottom:0;
+  padding:16px 18px;
+  border-top:1px solid var(--border);
+  background:rgba(11,15,22,.72);
+  backdrop-filter:blur(12px);
 }
-
-.composer-inner{
-  max-width:900px;
+.composerInner{
+  max-width:980px;
   margin:0 auto;
   display:flex;
   gap:10px;
+  align-items:flex-end;
 }
 
 textarea{
   flex:1;
   resize:none;
-  border:none;
+  border:1px solid var(--border);
   outline:none;
   border-radius:18px;
   padding:12px 14px;
-  background:#1a2333;
+  background:rgba(26,35,51,.85);
   color:white;
-  min-height:40px;
+  min-height:44px;
   max-height:180px;
   overflow:auto;
   font-family:'Inter', sans-serif;
 }
 
-button{
-  background:linear-gradient(135deg,var(--you1),var(--you2));
+.send{
+  height:44px;
   border:none;
   border-radius:16px;
-  padding:0 20px;
-  height:44px;
+  padding:0 18px;
   color:white;
-  font-weight:600;
+  font-weight:700;
   cursor:pointer;
-  font-family:'Inter', sans-serif;
+  background:linear-gradient(135deg,var(--you1),var(--you2));
+}
+
+/* Typing dots */
+.dots{
+  display:inline-flex;
+  gap:5px;
+  align-items:center;
+  height:16px;
+}
+.dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(232,238,252,.8);
+  opacity:.35;
+  animation:bounce 1s infinite ease-in-out;
+}
+.dot:nth-child(2){ animation-delay:.15s; }
+.dot:nth-child(3){ animation-delay:.3s; }
+
+@keyframes bounce{
+  0%,100%{ transform:translateY(0); opacity:.35;}
+  50%{ transform:translateY(-4px); opacity:1;}
+}
+
+/* Mobile */
+@media (max-width: 900px){
+  .app{ grid-template-columns: 1fr; }
+  .sidebar{ display:none; }
+  .bubble{ max-width:86%; }
 }
 </style>
 </head>
 
 <body>
+<div class="app">
 
-<div class="topbar">
-  <div class="title">SpenceAI</div>
-  <div class="subtitle">Dark mode • Memory in-session</div>
-</div>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logoDot"></div>
+      <div>
+        <div class="brandTitle">SpenceAI</div>
+        <div class="brandSub">Fast • Clean • In-session</div>
+      </div>
+    </div>
 
-<div class="chat" id="chat"></div>
+    <div class="sideBtns">
+      <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
+      <button class="sbtn" id="clearBtn">Clear messages <span class="badge">🧹</span></button>
+    </div>
 
-<div class="composer">
-  <div class="composer-inner">
-    <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-    <button id="sendBtn">Send</button>
-  </div>
+    <div class="about">
+      <h4>Tips</h4>
+      <p>Try the quick prompts or ask for step-by-step help. If you say <b>“just the answer”</b>, it’ll be concise.</p>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="topLeft">
+        <div class="title">SpenceAI</div>
+        <div class="subtitle">Dark mode • Memory in-session</div>
+      </div>
+
+      <div class="topRight">
+        <div class="toggle" title="Tone">
+          <button id="modeChill" class="active">Chill 😄</button>
+          <button id="modePro">Pro 🧠</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="chatWrap">
+      <!-- Hero panel -->
+      <div class="hero" id="hero">
+        <div class="heroCard">
+          <div class="heroGlow"></div>
+          <div class="heroText">
+            <h2>What are we building today? ✨</h2>
+            <p>Ask anything — study help, writing, ideas, code. Use the buttons to get started.</p>
+
+            <div class="quickGrid">
+              <button class="qbtn" data-prompt="Explain this like I’m 12.">Explain simply <span>Make it easy to understand</span></button>
+              <button class="qbtn" data-prompt="Write a 200-word paragraph about: ">200-word paragraph <span>Quick writing mode</span></button>
+              <button class="qbtn" data-prompt="Help me study this. Quiz me with 5 questions: ">Study quiz <span>Fast revision</span></button>
+              <button class="qbtn" data-prompt="Fix this and explain what was wrong:\n">Fix my code <span>Paste your code</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="chat" id="chat"></div>
+
+      <!-- Composer -->
+      <div class="composer">
+        <div class="composerInner">
+          <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+          <button class="send" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
 </div>
 
 <script>
@@ -169,75 +439,128 @@ const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
+const hero = document.getElementById("hero");
+const newChatBtn = document.getElementById("newChatBtn");
+const clearBtn = document.getElementById("clearBtn");
+const modeChill = document.getElementById("modeChill");
+const modePro = document.getElementById("modePro");
+
+let tone = "chill"; // chill | pro
 
 let conversation = [
-  {
-    role:"system",
-    content:"You are SpenceAI created by Dr Doakes. Be modern, clear, and confident."
-  }
+  { role:"system", content:"You are SpenceAI created by Dr Doakes. Be modern, clear, and confident." }
 ];
 
-function addBubble(role,text){
-  const row=document.createElement("div");
-  row.className="row "+role;
+function addBubble(role, text, isTyping=false){
+  const row = document.createElement("div");
+  row.className = "row " + role;
 
-  const bubble=document.createElement("div");
-  bubble.className="bubble "+role;
-  bubble.textContent=text;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble " + role;
+
+  if(isTyping){
+    bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+  } else {
+    bubble.textContent = text;
+  }
 
   row.appendChild(bubble);
   chat.appendChild(row);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
+  return bubble;
 }
 
 function autoResize(){
-  input.style.height="auto";
-  input.style.height=input.scrollHeight+"px";
+  input.style.height = "auto";
+  input.style.height = input.scrollHeight + "px";
 }
-input.addEventListener("input",autoResize);
+input.addEventListener("input", autoResize);
+
+function setTone(next){
+  tone = next;
+  modeChill.classList.toggle("active", tone === "chill");
+  modePro.classList.toggle("active", tone === "pro");
+
+  // update system message inside the conversation
+  const base = "You are SpenceAI created by Dr Doakes. Be modern, clear, and confident.";
+  const chill = base + " Be warm and friendly. Use emojis naturally when it fits 😊✨.";
+  const pro = base + " Be professional, direct, and structured. Use emojis rarely.";
+
+  conversation[0] = { role:"system", content: tone === "chill" ? chill : pro };
+}
+modeChill.onclick = () => setTone("chill");
+modePro.onclick = () => setTone("pro");
+
+document.querySelectorAll(".qbtn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const p = btn.getAttribute("data-prompt") || "";
+    input.value = p;
+    autoResize();
+    input.focus();
+  });
+});
+
+function resetChat(){
+  chat.innerHTML = "";
+  hero.style.display = "block";
+  conversation = [ conversation[0] ]; // keep current system
+  addBubble("ai","I'm SpenceAI. What are we working on?");
+}
+
+newChatBtn.onclick = resetChat;
+clearBtn.onclick = () => { chat.innerHTML=""; hero.style.display="block"; };
 
 async function send(){
-  const msg=input.value.trim();
+  const msg = input.value.trim();
   if(!msg) return;
 
-  addBubble("you",msg);
-  conversation.push({role:"user",content:msg});
-  input.value="";
+  hero.style.display = "none";
+
+  addBubble("you", msg);
+  conversation.push({ role:"user", content: msg });
+
+  input.value = "";
   autoResize();
 
-  const thinking=document.createElement("div");
-  thinking.className="row ai";
-  thinking.innerHTML='<div class="bubble ai">...</div>';
-  chat.appendChild(thinking);
+  const typingBubble = addBubble("ai", "", true);
 
   try{
-    const res=await fetch(WORKER_URL,{
+    const res = await fetch(WORKER_URL, {
       method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({messages:conversation})
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ messages: conversation })
     });
 
-    const data=await res.json();
-    const reply=data.reply || "(no reply)";
-    thinking.querySelector(".bubble").textContent=reply;
+    const data = await res.json();
+    const reply = data.reply || "(no reply)";
+    typingBubble.textContent = reply;
 
-    conversation.push({role:"assistant",content:reply});
+    conversation.push({ role:"assistant", content: reply });
   }catch{
-    thinking.querySelector(".bubble").textContent="Server error.";
+    typingBubble.textContent = "Server error.";
   }
 
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-sendBtn.onclick=send;
+sendBtn.onclick = send;
 
-input.addEventListener("keydown",e=>{
-  if(e.key==="Enter" && !e.shiftKey){
+input.addEventListener("keydown", e=>{
+  if(e.key === "Enter" && !e.shiftKey){
     e.preventDefault();
     send();
   }
 });
 
+// Ctrl+K = new chat
+window.addEventListener("keydown", (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
+    e.preventDefault();
+    resetChat();
+  }
+});
+
+setTone("chill");
 addBubble("ai","I'm SpenceAI. What are we working on?");
 </script>
 
