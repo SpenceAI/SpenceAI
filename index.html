@@ -11,17 +11,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
 
 <style>
-  /* ✅ Fix desktop scrolling inside flex/grid containers */
-.main,
-.chatWrap,
+/* Hide scrollbar but allow scrolling */
 .chat {
-  min-height: 0;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
 }
 
-.chat {
-  overflow-y: auto;        /* make sure this stays */
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+.chat::-webkit-scrollbar {
+  display: none;               /* Chrome/Safari */
 }
 :root{
   --bg:#0b0f16;
