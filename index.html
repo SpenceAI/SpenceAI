@@ -11,6 +11,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
 
 <style>
+  /* ✅ Fix desktop scrolling inside flex/grid containers */
+.main,
+.chatWrap,
+.chat {
+  min-height: 0;
+}
+
+.chat {
+  overflow-y: auto;        /* make sure this stays */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 :root{
   --bg:#0b0f16;
   --panel:#141d2e;
