@@ -14,7 +14,6 @@
 :root{
   --bg:#0b0f16;
   --panel:#141d2e;
-  --panel2:#101828;
   --border:rgba(255,255,255,.08);
   --text:#e8eefc;
   --muted:#a7b2c8;
@@ -36,19 +35,20 @@ body{
   overflow:hidden;
 }
 
-/* ---------- Sidebar open/close ---------- */
-body.sidebar-open .app{ grid-template-columns: 280px 1fr; }
-body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
-
+/* App layout */
 .app{
   height:100%;
   display:grid;
   grid-template-columns: 280px 1fr;
 }
 
-/* ---------- Sidebar ---------- */
+/* Desktop: sidebar can collapse to 0 */
+body.sidebar-closed .app{
+  grid-template-columns: 0 1fr;
+}
+
+/* Sidebar */
 .sidebar{
-  position:relative;
   border-right:1px solid var(--border);
   background:rgba(11,15,22,.55);
   backdrop-filter:blur(10px);
@@ -57,25 +57,53 @@ body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
   flex-direction:column;
   gap:12px;
   overflow:hidden;
+
   transform: translateX(0);
   transition: transform .22s ease;
 }
-body.sidebar-closed .sidebar{ transform: translateX(-100%); }
+body.sidebar-closed .sidebar{
+  transform: translateX(-100%);
+}
 
-/* Mobile overlay */
+/* Overlay (mainly for mobile drawer) */
 .overlay{
   position:fixed;
   inset:0;
   background:rgba(0,0,0,.45);
-  backdrop-filter: blur(2px);
   opacity:0;
   pointer-events:none;
   transition: opacity .2s ease;
-  z-index: 20;
+  z-index:40;
 }
-body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
+body.sidebar-open.mobile .overlay{
+  opacity:1;
+  pointer-events:auto;
+}
 
-/* ---------- Brand ---------- */
+/* Floating book button — ALWAYS visible */
+.bookBtn{
+  position:fixed;
+  left:14px;
+  bottom:16px;
+  z-index:60;
+
+  width:48px;
+  height:48px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.60);
+  color:var(--text);
+  cursor:pointer;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.bookBtn:hover{ background:rgba(20,29,46,.78); }
+
+/* Brand */
 .brand{
   display:flex;align-items:center;gap:10px;
   padding:10px 12px;
@@ -91,15 +119,8 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
 .brandTitle{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;}
 .brandSub{font-size:12px;color:var(--muted);margin-top:2px;}
 
-/* ---------- Buttons / rows ---------- */
-.rowBar{
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
-
 .sbtn{
-  flex:1;
+  width:100%;
   border:1px solid var(--border);
   background:rgba(20,29,46,.35);
   color:var(--text);
@@ -119,20 +140,6 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
   padding:3px 8px;border-radius:999px;
 }
 
-/* 📖 Sidebar toggle button (now visible + placed beside New chat) */
-.wedgeBtn{
-  width:44px;height:44px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:rgba(20,29,46,.35);
-  color:var(--text);
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.wedgeBtn:hover{ background:rgba(20,29,46,.55); }
-
 .sectionTitle{
   margin-top:6px;
   font-size:12px;
@@ -140,7 +147,6 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
   letter-spacing:.2px;
 }
 
-/* ---------- Chat list ---------- */
 .chatList{
   display:flex;
   flex-direction:column;
@@ -178,9 +184,7 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
   max-width:180px;
 }
 
-.chatItemMenu{
-  display:flex;gap:6px;flex:none;
-}
+.chatItemMenu{display:flex;gap:6px;flex:none;}
 .iconBtn{
   border:1px solid var(--border);
   background:rgba(20,29,46,.35);
@@ -194,7 +198,7 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
 }
 .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
-/* ---------- Main ---------- */
+/* Main */
 .main{height:100%;display:flex;flex-direction:column;}
 
 .topbar{
@@ -209,22 +213,6 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
 
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
-
-.toggle{
-  display:flex;
-  border:1px solid var(--border);
-  background:rgba(20,29,46,.35);
-  border-radius:999px;
-  padding:4px;
-}
-.toggle button{
-  border:none;background:transparent;color:var(--muted);
-  padding:8px 10px;border-radius:999px;cursor:pointer;
-  font-weight:600;font-size:12px;
-}
-.toggle button.active{
-  color:white;background:linear-gradient(135deg,var(--you1),var(--you2));
-}
 
 /* Chat */
 .chatWrap{flex:1;overflow:hidden;position:relative;}
@@ -251,11 +239,13 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
   font-size:15px;
   border:1px solid transparent;
 }
+
 .bubble.you{
   background:linear-gradient(135deg,var(--you1),var(--you2));
   color:white;
   border-bottom-right-radius:8px;
 }
+
 .bubble.ai{
   background:rgba(20,29,46,.65);
   border:1px solid var(--border);
@@ -270,11 +260,14 @@ body.sidebar-open.mobile .overlay{ opacity:1; pointer-events:auto; }
   border-top:1px solid var(--border);
   background:rgba(11,15,22,.72);
   backdrop-filter:blur(12px);
+  z-index:10; /* ensure it stays visible */
 }
+
 .composerInner{
   max-width:980px;margin:0 auto;
   display:flex;gap:10px;align-items:flex-end;
 }
+
 textarea{
   flex:1;
   resize:none;
@@ -289,6 +282,7 @@ textarea{
   overflow:auto;
   font-family:'Inter', sans-serif;
 }
+
 .send{
   height:44px;
   border:none;border-radius:16px;
@@ -298,31 +292,49 @@ textarea{
   background:linear-gradient(135deg,var(--you1),var(--you2));
 }
 
-/* Typing dots */
+/* Typing dots (while waiting for server) */
 .dots{display:inline-flex;gap:5px;align-items:center;height:16px;}
 .dot{width:6px;height:6px;border-radius:50%;background:rgba(232,238,252,.8);opacity:.35;animation:b 1s infinite ease-in-out;}
 .dot:nth-child(2){animation-delay:.15s;}
 .dot:nth-child(3){animation-delay:.3s;}
 @keyframes b{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-4px);opacity:1}}
 
-/* ---------- Mobile behaviour ---------- */
+/* Cursor for linear typing */
+.cursor{
+  display:inline-block;
+  width:10px;
+  opacity:.9;
+  animation:blink 1s step-end infinite;
+}
+@keyframes blink{
+  0%,50%{opacity:1;}
+  50.01%,100%{opacity:0;}
+}
+
+/* Mobile drawer behaviour */
 @media (max-width: 900px){
-  .app{ grid-template-columns: 0 1fr; }
+  .app{ grid-template-columns: 0 1fr; } /* start closed */
   .sidebar{
     position:fixed;
     left:0; top:0; bottom:0;
-    width: 280px;
-    z-index: 30;
+    width: min(86vw, 320px);
+    z-index:50;
   }
   body.sidebar-open.mobile .sidebar{ transform: translateX(0); }
-  body.sidebar-closed.mobile .sidebar{ transform: translateX(-100%); }
-  .bubble{ max-width:86%; }
+  body.sidebar-closed.mobile .sidebar{ transform: translateX(-110%); }
+
+  /* keep bubbles readable */
+  .bubble{ max-width:88%; }
 }
 </style>
 </head>
 
-<body>
+<body class="sidebar-open">
+
 <div class="overlay" id="overlay"></div>
+
+<!-- Always-visible toggle -->
+<button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
 
 <div class="app">
 
@@ -331,15 +343,11 @@ textarea{
       <div class="logoDot"></div>
       <div>
         <div class="brandTitle">SpenceAI</div>
-        <div class="brandSub">Saved chats • Local</div>
+        <div class="brandSub">Saved chats</div>
       </div>
     </div>
 
-    <!-- NEW: New chat + 📖 toggle are together -->
-    <div class="rowBar">
-      <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
-      <button class="wedgeBtn" id="wedgeBtn" title="Close storage">📖</button>
-    </div>
+    <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
 
     <div class="sectionTitle">Your chats</div>
     <div class="chatList" id="chatList"></div>
@@ -349,11 +357,7 @@ textarea{
     <header class="topbar">
       <div>
         <div class="title">SpenceAI</div>
-        <div class="subtitle">Dark mode • Memory in-session + saved chats</div>
-      </div>
-      <div class="toggle" title="Tone">
-        <button id="modeChill" class="active">Chill 😄</button>
-        <button id="modePro">Pro 🧠</button>
+        <div class="subtitle">Dark mode • Saved chats</div>
       </div>
     </header>
 
@@ -384,25 +388,25 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
-const modeChill = document.getElementById("modeChill");
-const modePro = document.getElementById("modePro");
-const wedgeBtn = document.getElementById("wedgeBtn");
+
+const bookBtn = document.getElementById("bookBtn");
 const overlay = document.getElementById("overlay");
 
-/* Sidebar helpers */
+/* Mobile detection */
 function isMobile(){ return window.matchMedia("(max-width: 900px)").matches; }
 function setMobileFlag(){ document.body.classList.toggle("mobile", isMobile()); }
 
+/* Sidebar control */
 function openSidebar(){
   document.body.classList.add("sidebar-open");
   document.body.classList.remove("sidebar-closed");
-  wedgeBtn.title = "Close storage";
+  bookBtn.title = "Close chat storage";
 }
 
 function closeSidebar(){
   document.body.classList.add("sidebar-closed");
   document.body.classList.remove("sidebar-open");
-  wedgeBtn.title = "Open storage";
+  bookBtn.title = "Open chat storage";
 }
 
 function toggleSidebar(){
@@ -411,9 +415,10 @@ function toggleSidebar(){
   else openSidebar();
 }
 
-wedgeBtn.addEventListener("click", toggleSidebar);
+bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
+/* Default: desktop OPEN, mobile CLOSED */
 function applyDefaultSidebar(){
   setMobileFlag();
   if(isMobile()) closeSidebar();
@@ -434,22 +439,18 @@ const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now())
 function nowTitle(){ return "New chat • " + new Date().toLocaleString(); }
 
 function loadAllChats(){
-  try {
+  try{
     const raw = localStorage.getItem(LS_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  }catch{ return []; }
 }
 function saveAllChats(chats){ localStorage.setItem(LS_KEY, JSON.stringify(chats)); }
 function setActiveChatId(id){ localStorage.setItem(LS_ACTIVE, id); }
 function getActiveChatId(){ return localStorage.getItem(LS_ACTIVE); }
 
-/* Tone/system */
-let tone = "chill";
+/* System prompt (single style) */
 function systemText(){
-  const base = "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly.";
-  return tone === "pro"
-    ? base + " Be professional, direct, and structured. Use emojis rarely."
-    : base + " Use emojis naturally when it fits 😊✨.";
+  return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
 
 /* Chats */
@@ -457,18 +458,26 @@ let chats = loadAllChats();
 let activeChatId = getActiveChatId();
 
 if(!chats.length){
-  const first = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
+  const first = {
+    id: uid(),
+    title: nowTitle(),
+    createdAt: Date.now(),
+    messages: [{ role:"system", content: systemText() }]
+  };
   chats.unshift(first);
   saveAllChats(chats);
   activeChatId = first.id;
   setActiveChatId(activeChatId);
 }
+
 if(!activeChatId || !chats.find(c=>c.id===activeChatId)){
   activeChatId = chats[0].id;
   setActiveChatId(activeChatId);
 }
+
 function getActiveChat(){ return chats.find(c=>c.id===activeChatId); }
 
+/* UI */
 function addBubble(role, text, isTyping=false){
   const row = document.createElement("div");
   row.className = "row " + role;
@@ -478,7 +487,7 @@ function addBubble(role, text, isTyping=false){
 
   if(isTyping){
     bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-  } else {
+  }else{
     bubble.textContent = text;
   }
 
@@ -499,6 +508,7 @@ function renderChatMessages(){
       addBubble(m.role === "assistant" ? "ai" : "you", m.content);
     }
   }
+  chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function renderChatList(){
@@ -538,6 +548,7 @@ function renderChatList(){
       e.stopPropagation();
       if(!confirm("Delete this chat?")) return;
       chats = chats.filter(x=>x.id!==c.id);
+
       if(!chats.length){
         const n = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
         chats.unshift(n);
@@ -569,16 +580,23 @@ function renderChatList(){
   }
 }
 
+/* Input UX */
 function autoResize(){
   input.style.height = "auto";
   input.style.height = input.scrollHeight + "px";
 }
 input.addEventListener("input", autoResize);
 
+/* New chat */
 function persistAll(){ saveAllChats(chats); }
 
 function newChat(){
-  const c = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
+  const c = {
+    id: uid(),
+    title: nowTitle(),
+    createdAt: Date.now(),
+    messages: [{ role:"system", content: systemText() }]
+  };
   chats.unshift(c);
   activeChatId = c.id;
   setActiveChatId(activeChatId);
@@ -587,6 +605,7 @@ function newChat(){
   renderChatMessages();
   if(isMobile()) closeSidebar();
 }
+
 newChatBtn.onclick = newChat;
 
 window.addEventListener("keydown", (e)=>{
@@ -596,25 +615,38 @@ window.addEventListener("keydown", (e)=>{
   }
 });
 
-function setTone(next){
-  tone = next;
-  modeChill.classList.toggle("active", tone === "chill");
-  modePro.classList.toggle("active", tone === "pro");
+/* ---- Linear typing (typewriter) ---- */
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  for(const c of chats){
-    if(c.messages?.[0]?.role === "system") c.messages[0].content = systemText();
-    else c.messages = [{role:"system", content: systemText()}, ...(c.messages||[])];
+async function typewriter(el, text, speed=10){
+  // speed: lower = faster
+  el.innerHTML = "";
+  const cursor = document.createElement("span");
+  cursor.className = "cursor";
+  cursor.textContent = "▍";
+  el.appendChild(cursor);
+
+  // type
+  for(let i=0; i<text.length; i++){
+    cursor.insertAdjacentText("beforebegin", text[i]);
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    // smoother: small randomness
+    const jitter = Math.random() * 8;
+    await sleep(speed + jitter);
   }
-  persistAll();
-}
-modeChill.onclick = ()=>setTone("chill");
-modePro.onclick = ()=>setTone("pro");
 
+  // remove cursor at end
+  cursor.remove();
+}
+
+/* Send */
 async function send(){
   const msg = input.value.trim();
   if(!msg) return;
 
   const c = getActiveChat();
+
   if(c.title && c.title.startsWith("New chat")){
     c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
   }
@@ -625,7 +657,7 @@ async function send(){
   input.value = "";
   autoResize();
 
-  const typingBubble = addBubble("ai", "", true);
+  const waitingBubble = addBubble("ai", "", true);
 
   try{
     const res = await fetch(WORKER_URL, {
@@ -636,13 +668,16 @@ async function send(){
 
     const data = await res.json();
     const reply = data.reply || "(no reply)";
-    typingBubble.textContent = reply;
+
+    // swap dots bubble into a normal bubble and type it out
+    waitingBubble.innerHTML = "";
+    await typewriter(waitingBubble, reply, 10);
 
     c.messages.push({ role:"assistant", content: reply });
     persistAll();
     renderChatList();
   }catch{
-    typingBubble.textContent = "Server error.";
+    waitingBubble.textContent = "Server error.";
   }
 
   chatEl.scrollTop = chatEl.scrollHeight;
@@ -660,7 +695,6 @@ input.addEventListener("keydown", e=>{
 applyDefaultSidebar();
 renderChatList();
 renderChatMessages();
-setTone("chill");
 </script>
 
 </body>
