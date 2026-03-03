@@ -433,6 +433,85 @@ function systemText(){
   return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
 
+/* ✅ Advanced insult/threat detection (triggers: reply = 'Why Julian') */
+function isInsultOrThreat(text){
+  const norm = (text || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    // leetspeak-ish swaps
+    .replace(/[@]/g, "a")
+    .replace(/[!]/g, "i")
+    .replace(/[1]/g, "i")
+    .replace(/[3]/g, "e")
+    .replace(/[4]/g, "a")
+    .replace(/[5]/g, "s")
+    .replace(/[7]/g, "t")
+    .replace(/[0]/g, "o")
+    // remove punctuation
+    .replace(/[^a-z0-9\s]/g, "");
+
+  if(!norm) return false;
+
+  const directYou = /\b(you|u|ur|youre|ya)\b/.test(norm);
+
+  let score = 0;
+
+  // Strong "shut up" variants: shutup / shut the hell up / etc.
+  if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm)) score += 4;
+
+  // Threats aimed at "you"
+  // Examples: "im gonna kill you", "ima kill u", "going to murder you", "ill hurt you"
+  const threatYou = /\b(i|im|ima|i am|ill|i will|gonna|going to|bout to)\s*(?:really\s*)?(kill|murder|hurt|beat|stab|shoot|destroy)\s+(you|u)\b/;
+  if(threatYou.test(norm)) score += 6;
+
+  // "kill yourself" style
+  if(/\bkill\s+yourself\b/.test(norm)) score += 6;
+
+  // If "kill" appears AND it's aimed at you, count it (but don't flag "kill a process")
+  if(directYou && /\bkill\b/.test(norm)) score += 3;
+
+  // "gay" ONLY when used as an insult (directed at you) OR the classic "thats gay" insult usage
+  if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
+
+  const profanity = [
+    "fuck","fucking","fuk","shit","shitty","bitch","bastard","cunt",
+    "dick","pussy","asshole","retard","slut","whore"
+  ];
+  const insultAdj = [
+    "stupid","dumb","idiot","moron","trash","useless","pathetic","loser",
+    "terrible","awful","worthless","annoying","garbage","lame","cringe",
+    "ugly","weak","embarrassing"
+  ];
+  const hardPhrases = [
+    "i hate you",
+    "you suck",
+    "kys",
+    "go die",
+    "die"
+  ];
+
+  for(const p of hardPhrases){
+    if(norm.includes(p)) score += 3;
+  }
+
+  for(const w of profanity){
+    if(new RegExp(`\\b${w}\\b`).test(norm)) score += 2;
+  }
+
+  for(const w of insultAdj){
+    if(new RegExp(`\\b${w}\\b`).test(norm)) score += 1;
+  }
+
+  // "you are ..." style attacks get a boost if any negativity exists
+  if(/\b(you|u|ur|youre)\s+(are|r|so)\b/.test(norm) && score > 0) score += 2;
+
+  // If it's clearly directed at "you", bump slightly
+  if(directYou && score > 0) score += 1;
+
+  return score >= 3;
+}
+
 /* Chats */
 let chats = loadAllChats();
 let activeChatId = getActiveChatId();
@@ -628,6 +707,17 @@ async function send(){
 
   input.value = "";
   autoResize();
+
+  // ✅ If user insults/threatens → ALWAYS "Why Julian" (no Worker call)
+  if(isInsultOrThreat(msg)){
+    const reply = "Why Julian";
+    const aiBubble = addBubble("ai", reply);
+    c.messages.push({ role:"assistant", content: reply });
+    persistAll();
+    renderChatList();
+    chatEl.scrollTop = chatEl.scrollHeight;
+    return;
+  }
 
   const waitingBubble = addBubble("ai", "", true);
 
