@@ -64,7 +64,7 @@ body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 /* Desktop hidden */
 body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 
-/* Overlay (used on mobile only via media query below) */
+/* Overlay (mobile drawer) */
 .overlay{
   position:fixed;
   inset:0;
@@ -75,28 +75,28 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   z-index:40;
 }
 
-/* Floating book button — ALWAYS visible */
-.bookBtn{
+/* MOBILE floating book button (top-right) */
+.bookBtnMobile{
   position:fixed;
-  left:14px;
-  bottom:16px;
+  right:14px;
+  top:14px;
   z-index:70;
 
-  width:48px;
-  height:48px;
+  width:46px;
+  height:46px;
   border-radius:16px;
   border:1px solid var(--border);
   background:rgba(20,29,46,.60);
   color:var(--text);
   cursor:pointer;
 
-  display:flex;
+  display:none; /* shown only on mobile via media query */
   align-items:center;
   justify-content:center;
 
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  box-shadow: 0 10px 30px rgba(0,0,0,.30);
 }
-.bookBtn:hover{ background:rgba(20,29,46,.78); }
+.bookBtnMobile:hover{ background:rgba(20,29,46,.78); }
 
 /* Sidebar content */
 .brand{
@@ -220,7 +220,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 .chat{
   height:100%;
   overflow-y:auto;
-  padding:22px 18px 160px; /* extra space for fixed composer */
+  padding:22px 18px 160px;
   max-width:980px;
   width:100%;
   margin:0 auto;
@@ -251,7 +251,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   border-bottom-left-radius:8px;
 }
 
-/* Composer — FIXED (mobile safe) */
+/* Composer — fixed */
 .composer{
   position:fixed;
   left:0; right:0;
@@ -270,6 +270,22 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   gap:10px;
   align-items:flex-end;
 }
+
+/* DESKTOP book button (beside input) */
+.bookBtnDesktop{
+  width:44px;
+  height:44px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.60);
+  color:var(--text);
+  cursor:pointer;
+
+  display:flex;              /* visible on desktop */
+  align-items:center;
+  justify-content:center;
+}
+.bookBtnDesktop:hover{ background:rgba(20,29,46,.78); }
 
 textarea{
   flex:1;
@@ -297,7 +313,7 @@ textarea{
   background:linear-gradient(135deg,var(--you1),var(--you2));
 }
 
-/* Typing dots while waiting */
+/* Typing dots */
 .dots{display:inline-flex;gap:5px;align-items:center;height:16px;}
 .dot{width:6px;height:6px;border-radius:50%;background:rgba(232,238,252,.8);opacity:.35;animation:b 1s infinite ease-in-out;}
 .dot:nth-child(2){animation-delay:.15s;}
@@ -316,18 +332,15 @@ textarea{
   50.01%,100%{opacity:0;}
 }
 
-/* --------- MOBILE FIXES --------- */
+/* --------- MOBILE --------- */
 @media (max-width: 900px){
-  /* Use mobile-safe viewport height */
   .main{ height:100dvh; }
 
-  /* App becomes single-column */
   .app{
     display:block;
     height:100dvh;
   }
 
-  /* Sidebar becomes off-canvas drawer */
   .sidebar{
     position:fixed;
     top:0; bottom:0; left:0;
@@ -342,11 +355,14 @@ textarea{
     pointer-events:auto;
   }
 
-  /* bubbles wider */
   .bubble{ max-width:88%; }
-
-  /* give chat bottom space for fixed composer */
   .chat{ padding-bottom: 190px; }
+
+  /* show mobile floating book button */
+  .bookBtnMobile{ display:flex; }
+
+  /* hide desktop book button inside composer on mobile */
+  .bookBtnDesktop{ display:none; }
 }
 </style>
 </head>
@@ -354,7 +370,9 @@ textarea{
 <body class="sidebar-closed">
 
 <div class="overlay" id="overlay"></div>
-<button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
+
+<!-- Mobile button (top-right) -->
+<button class="bookBtnMobile" id="bookBtnMobile" title="Open chat storage">📖</button>
 
 <div class="app">
 
@@ -386,9 +404,12 @@ textarea{
 
 </div>
 
-<!-- Composer fixed outside layout so it never disappears -->
+<!-- Composer fixed outside layout -->
 <div class="composer">
   <div class="composerInner">
+    <!-- Desktop button beside input -->
+    <button class="bookBtnDesktop" id="bookBtnDesktop" title="Open chat storage">📖</button>
+
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
     <button class="send" id="sendBtn">Send</button>
   </div>
@@ -407,26 +428,27 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
 const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
-const bookBtn = document.getElementById("bookBtn");
+
 const overlay = document.getElementById("overlay");
+const bookBtnMobile = document.getElementById("bookBtnMobile");
+const bookBtnDesktop = document.getElementById("bookBtnDesktop");
 
 /* Sidebar controls */
 function openSidebar(){
   document.body.classList.add("sidebar-open");
   document.body.classList.remove("sidebar-closed");
-  bookBtn.title = "Close chat storage";
 }
 function closeSidebar(){
   document.body.classList.add("sidebar-closed");
   document.body.classList.remove("sidebar-open");
-  bookBtn.title = "Open chat storage";
 }
 function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
 
-bookBtn.addEventListener("click", toggleSidebar);
+bookBtnMobile.addEventListener("click", toggleSidebar);
+bookBtnDesktop.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
 /* Helpers */
@@ -568,7 +590,8 @@ function renderChatList(){
       setActiveChatId(activeChatId);
       renderChatList();
       renderChatMessages();
-      // close drawer after choosing a chat on mobile
+
+      // close drawer on mobile after choosing
       if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
     };
 
