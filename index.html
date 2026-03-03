@@ -36,11 +36,23 @@ body{
   overflow:hidden;
 }
 
-/* Layout */
-.app{height:100%;display:grid;grid-template-columns: 280px 1fr;}
+/* ---------- Sidebar toggle state ---------- */
+body.sidebar-open .app{
+  grid-template-columns: 280px 1fr;
+}
+body.sidebar-closed .app{
+  grid-template-columns: 0 1fr;
+}
 
-/* Sidebar */
+.app{
+  height:100%;
+  display:grid;
+  grid-template-columns: 280px 1fr;
+}
+
+/* ---------- Sidebar ---------- */
 .sidebar{
+  position:relative;
   border-right:1px solid var(--border);
   background:rgba(11,15,22,.55);
   backdrop-filter:blur(10px);
@@ -48,8 +60,68 @@ body{
   display:flex;
   flex-direction:column;
   gap:12px;
+  overflow:hidden;
+
+  /* slide animation */
+  transform: translateX(0);
+  transition: transform .22s ease;
 }
 
+/* When closed, slide it away */
+body.sidebar-closed .sidebar{
+  transform: translateX(-100%);
+}
+
+/* Overlay only used on mobile */
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.45);
+  backdrop-filter: blur(2px);
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .2s ease;
+  z-index: 20;
+}
+body.sidebar-open.mobile .overlay{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* ---------- Book button (the "wedge" opener) ---------- */
+.bookBtn{
+  position:fixed;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index: 40;
+
+  width:44px;
+  height:44px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.55);
+  color:var(--text);
+  cursor:pointer;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow: 0 8px 30px rgba(0,0,0,.35);
+}
+.bookBtn:hover{
+  background:rgba(20,29,46,.75);
+}
+
+/* Hide the book button when sidebar is open on desktop (optional) */
+@media (min-width: 901px){
+  body.sidebar-open:not(.mobile) .bookBtn{
+    opacity:.35;
+  }
+}
+
+/* ---------- Sidebar content ---------- */
 .brand{
   display:flex;align-items:center;gap:10px;
   padding:10px 12px;
@@ -156,7 +228,7 @@ body{
 .about h4{margin:0 0 6px 0;font-size:13px;font-family:'Sora', sans-serif;}
 .about p{margin:0;color:var(--muted);font-size:12px;line-height:1.35;}
 
-/* Main */
+/* ---------- Main ---------- */
 .main{height:100%;display:flex;flex-direction:column;}
 
 .topbar{
@@ -168,6 +240,7 @@ body{
   backdrop-filter:blur(10px);
   background:rgba(11,15,22,.55);
 }
+
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
 
@@ -265,18 +338,37 @@ textarea{
 .dot:nth-child(3){animation-delay:.3s;}
 @keyframes b{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-4px);opacity:1}}
 
+/* ---------- Mobile behaviour ---------- */
 @media (max-width: 900px){
-  .app{ grid-template-columns: 1fr; }
-  .sidebar{ display:none; }
+  .app{ grid-template-columns: 0 1fr; } /* start closed */
+  .sidebar{
+    position:fixed;
+    left:0; top:0; bottom:0;
+    width: 280px;
+    z-index: 30;
+    border-right:1px solid var(--border);
+  }
+  body.sidebar-open.mobile .sidebar{ transform: translateX(0); }
+  body.sidebar-closed.mobile .sidebar{ transform: translateX(-100%); }
+
+  /* move the book button a bit down so it doesn't hit browser UI */
+  .bookBtn{ top:58%; }
+
   .bubble{ max-width:86%; }
 }
 </style>
 </head>
 
 <body>
+<!-- overlay for mobile -->
+<div class="overlay" id="overlay"></div>
+
+<!-- book button -->
+<button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
+
 <div class="app">
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="logoDot"></div>
       <div>
@@ -338,6 +430,56 @@ const chatListEl = document.getElementById("chatList");
 const modeChill = document.getElementById("modeChill");
 const modePro = document.getElementById("modePro");
 
+const bookBtn = document.getElementById("bookBtn");
+const overlay = document.getElementById("overlay");
+
+/* ---------- Sidebar state ---------- */
+function isMobile(){
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+
+function setMobileFlag(){
+  document.body.classList.toggle("mobile", isMobile());
+}
+
+function openSidebar(){
+  document.body.classList.add("sidebar-open");
+  document.body.classList.remove("sidebar-closed");
+  bookBtn.title = "Close chat storage";
+}
+
+function closeSidebar(){
+  document.body.classList.add("sidebar-closed");
+  document.body.classList.remove("sidebar-open");
+  bookBtn.title = "Open chat storage";
+}
+
+function toggleSidebar(){
+  const open = document.body.classList.contains("sidebar-open");
+  if(open) closeSidebar();
+  else openSidebar();
+}
+
+/* default: desktop open, mobile closed */
+function applyDefaultSidebar(){
+  setMobileFlag();
+  if(isMobile()) closeSidebar();
+  else openSidebar();
+}
+
+bookBtn.addEventListener("click", toggleSidebar);
+overlay.addEventListener("click", closeSidebar);
+
+window.addEventListener("resize", ()=>{
+  const wasMobile = document.body.classList.contains("mobile");
+  setMobileFlag();
+  const nowMobile = document.body.classList.contains("mobile");
+  if(wasMobile !== nowMobile){
+    // switching modes: reset to sensible default
+    applyDefaultSidebar();
+  }
+});
+
 /* ---------- Helpers ---------- */
 const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 
@@ -375,7 +517,7 @@ function systemText(){
   return base + " Use emojis naturally when it fits 😊✨.";
 }
 
-/* ---------- Current Chat Model ---------- */
+/* ---------- Current chats ---------- */
 let chats = loadAllChats();
 let activeChatId = getActiveChatId();
 
@@ -440,8 +582,8 @@ function renderChatMessages(){
 function renderChatList(){
   chatListEl.innerHTML = "";
   for(const c of chats){
-    const btn = document.createElement("div");
-    btn.className = "chatItem" + (c.id === activeChatId ? " active" : "");
+    const item = document.createElement("div");
+    item.className = "chatItem" + (c.id === activeChatId ? " active" : "");
 
     const left = document.createElement("div");
     left.className = "chatItemTitle";
@@ -474,6 +616,7 @@ function renderChatList(){
       e.stopPropagation();
       if(!confirm("Delete this chat?")) return;
       chats = chats.filter(x => x.id !== c.id);
+
       if(!chats.length){
         const newOne = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
         chats.unshift(newOne);
@@ -490,17 +633,19 @@ function renderChatList(){
     menu.appendChild(rename);
     menu.appendChild(del);
 
-    btn.appendChild(left);
-    btn.appendChild(menu);
+    item.appendChild(left);
+    item.appendChild(menu);
 
-    btn.onclick = () => {
+    item.onclick = () => {
       activeChatId = c.id;
       setActiveChatId(activeChatId);
       renderChatList();
       renderChatMessages();
+      // On mobile, close after selecting
+      if(isMobile()) closeSidebar();
     };
 
-    chatListEl.appendChild(btn);
+    chatListEl.appendChild(item);
   }
 }
 
@@ -512,7 +657,7 @@ function autoResize(){
 input.addEventListener("input", autoResize);
 
 /* ---------- Actions ---------- */
-function persistActiveChat(){
+function persistAll(){
   saveAllChats(chats);
 }
 
@@ -526,9 +671,10 @@ function newChat(){
   chats.unshift(c);
   activeChatId = c.id;
   setActiveChatId(activeChatId);
-  persistActiveChat();
+  persistAll();
   renderChatList();
   renderChatMessages();
+  if(isMobile()) closeSidebar();
 }
 
 newChatBtn.onclick = newChat;
@@ -546,7 +692,6 @@ function setTone(next){
   modeChill.classList.toggle("active", tone === "chill");
   modePro.classList.toggle("active", tone === "pro");
 
-  // update system message in EVERY chat (so it behaves consistently)
   for(const c of chats){
     if(c.messages?.[0]?.role === "system"){
       c.messages[0].content = systemText();
@@ -554,19 +699,18 @@ function setTone(next){
       c.messages = [{role:"system", content: systemText()}, ...(c.messages||[])];
     }
   }
-  persistActiveChat();
+  persistAll();
 }
 modeChill.onclick = () => setTone("chill");
 modePro.onclick = () => setTone("pro");
 
-/* ---------- Send message ---------- */
+/* ---------- Send ---------- */
 async function send(){
   const msg = input.value.trim();
   if(!msg) return;
 
   const c = getActiveChat();
 
-  // If chat title is still "New chat..." make it the first user message (like ChatGPT)
   if(c.title && c.title.startsWith("New chat")){
     c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
   }
@@ -591,7 +735,7 @@ async function send(){
     typingBubble.textContent = reply;
 
     c.messages.push({ role:"assistant", content: reply });
-    persistActiveChat();
+    persistAll();
     renderChatList();
   }catch{
     typingBubble.textContent = "Server error.";
@@ -609,6 +753,7 @@ input.addEventListener("keydown", e=>{
 });
 
 /* ---------- Boot ---------- */
+applyDefaultSidebar();
 renderChatList();
 renderChatMessages();
 setTone("chill");
