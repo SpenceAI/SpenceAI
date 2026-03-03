@@ -135,13 +135,20 @@ async function send(){
       body:JSON.stringify({messages:conversation})
     });
 
-    const data = await res.json();
-    const reply = data.reply || "(no reply)";
+    const text = await res.text();
 
+    if(!res.ok){
+      thinking.textContent = "Server error: " + res.status + " " + text;
+      return;
+    }
+
+    const data = JSON.parse(text);
+    const reply = data.reply || "(no reply)";
     thinking.textContent = reply;
+
     conversation.push({role:"assistant",content:reply});
   }catch{
-    thinking.textContent="Error contacting server.";
+    thinking.textContent="Network error.";
   }
 
   chat.scrollTop = chat.scrollHeight;
