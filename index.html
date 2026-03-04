@@ -857,11 +857,6 @@ const supabaseAuth = window.supabase.createClient(
   "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
 );
 
-// grab elements without redeclaring
-authBtn = document.getElementById("authBtn");
-authPill = document.getElementById("authPill");
-brandSub = document.getElementById("brandSub");
-
 async function loginWithGoogle() {
   await supabaseAuth.auth.signInWithOAuth({
     provider: "google",
@@ -902,6 +897,6 @@ authBtn.addEventListener("click", async ()=>{
 supabaseAuth.auth.onAuthStateChange(() => refreshAuthUI());
 refreshAuthUI();
 </script>
-
+  
 </body>
 </html>
