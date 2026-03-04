@@ -32,7 +32,7 @@ body{
     radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
     var(--bg);
   color:var(--text);
-  overflow:hidden; /* we scroll inside .chat */
+  overflow:hidden; /* scroll happens inside .chat */
 }
 
 /* Desktop layout */
@@ -40,9 +40,7 @@ body{
   height:100%;
   display:grid;
   grid-template-columns: 280px 1fr;
-
-  /* ✅ helps scroll containers inside grid */
-  min-height:0;
+  min-height:0; /* ✅ helps scroll inside grid */
 }
 
 /* Desktop collapse */
@@ -80,7 +78,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   right:14px;
   top:14px;
   z-index:80;
-
   width:46px;
   height:46px;
   border-radius:16px;
@@ -88,11 +85,9 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   background:rgba(20,29,46,.60);
   color:var(--text);
   cursor:pointer;
-
   display:flex;
   align-items:center;
   justify-content:center;
-
   box-shadow: 0 10px 30px rgba(0,0,0,.30);
 }
 .bookBtn:hover{ background:rgba(20,29,46,.78); }
@@ -197,9 +192,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   height:100%;
   display:flex;
   flex-direction:column;
-
-  /* ✅ critical for scroll to work in flex */
-  min-height:0;
+  min-height:0; /* ✅ critical for scroll inside flex */
 }
 
 /* Topbar */
@@ -213,17 +206,13 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
 
-/* Chat wrapper */
+/* Chat */
 .chatWrap{
   flex:1;
   overflow:hidden;
   position:relative;
-
-  /* ✅ critical for scroll to work */
-  min-height:0;
+  min-height:0; /* ✅ critical */
 }
-
-/* Chat scroller */
 .chat{
   height:100%;
   overflow-y:auto;
@@ -231,19 +220,17 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   max-width:980px;
   width:100%;
   margin:0 auto;
-
-  /* ✅ critical for scroll to work */
-  min-height:0;
+  min-height:0; /* ✅ critical */
 
   /* ✅ hide scrollbar but keep scrolling */
-  scrollbar-width:none;        /* Firefox */
-  -ms-overflow-style:none;     /* old Edge */
+  scrollbar-width:none;
+  -ms-overflow-style:none;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
-.chat::-webkit-scrollbar{ display:none; } /* Chrome/Safari */
+.chat::-webkit-scrollbar{ display:none; }
 
-/* Messages */
+/* Rows */
 .row{display:flex;margin:14px 0;}
 .row.you{justify-content:flex-end;}
 .row.ai{justify-content:flex-start;}
@@ -269,7 +256,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   border-bottom-left-radius:8px;
 }
 
-/* Composer fixed */
+/* Composer */
 .composer{
   position:fixed;
   left:0; right:0;
@@ -280,7 +267,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   backdrop-filter:blur(12px);
   z-index:60;
 }
-
 .composerInner{
   max-width:980px;
   margin:0 auto;
@@ -288,7 +274,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   gap:10px;
   align-items:flex-end;
 }
-
 textarea{
   flex:1;
   resize:none;
@@ -303,7 +288,6 @@ textarea{
   overflow:auto;
   font-family:'Inter', sans-serif;
 }
-
 .send{
   height:44px;
   border:none;
@@ -337,11 +321,7 @@ textarea{
 /* Mobile */
 @media (max-width: 900px){
   .main{ height:100dvh; }
-
-  .app{
-    display:block;
-    height:100dvh;
-  }
+  .app{ display:block; height:100dvh; }
 
   .sidebar{
     position:fixed;
@@ -359,7 +339,6 @@ textarea{
 
   .bubble{ max-width:88%; }
   .chat{ padding-bottom: 190px; }
-
   .bookBtn{ top:12px; right:12px; }
 }
 </style>
@@ -423,6 +402,21 @@ const chatListEl = document.getElementById("chatList");
 const overlay = document.getElementById("overlay");
 const bookBtn = document.getElementById("bookBtn");
 
+/* ✅ Smart scroll: ONLY stick to bottom if user is near bottom */
+let pinnedToBottom = true;
+
+function isNearBottom(el, threshold = 80){
+  return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+}
+
+chatEl.addEventListener("scroll", () => {
+  pinnedToBottom = isNearBottom(chatEl);
+}, { passive: true });
+
+function smartScrollToBottom(){
+  if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
+}
+
 /* Sidebar controls */
 function openSidebar(){
   document.body.classList.add("sidebar-open");
@@ -436,6 +430,7 @@ function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
+
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
@@ -457,7 +452,7 @@ function systemText(){
   return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
 }
 
-/* ✅ Advanced insult/threat detection -> reply always 'Why Julian' */
+/* ✅ Insult/threat detection -> reply always 'Why Julian' */
 function isInsultOrThreat(text){
   const norm = (text || "")
     .toLowerCase()
@@ -478,21 +473,16 @@ function isInsultOrThreat(text){
   const directYou = /\b(you|u|ur|youre|ya)\b/.test(norm);
   let score = 0;
 
-  // "shut up" variants
   if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm) || /\bshutup\b/.test(norm)) score += 5;
 
-  // Threats aimed at you
   const threatYou = /\b(i|im|ima|i am|ill|i will|gonna|going to|bout to)\s*(?:really\s*)?(kill|murder|hurt|beat|stab|shoot|destroy)\s+(you|u)\b/;
   if(threatYou.test(norm)) score += 7;
 
-  // "kill yourself" / "kys"
   if(/\bkys\b/.test(norm)) score += 7;
   if(/\bkill\s+yourself\b/.test(norm)) score += 7;
 
-  // Only count plain "kill" when it's aimed at you
   if(directYou && /\bkill\b/.test(norm)) score += 3;
 
-  // "gay" only when used as insult at you / "that's gay"
   if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
 
   const profanity = [
@@ -562,7 +552,7 @@ function addBubble(role, text, isTyping=false){
 
   row.appendChild(bubble);
   chatEl.appendChild(row);
-  chatEl.scrollTop = chatEl.scrollHeight;
+  smartScrollToBottom();
   return bubble;
 }
 
@@ -577,7 +567,7 @@ function renderChatMessages(){
       addBubble(m.role === "assistant" ? "ai" : "you", m.content);
     }
   }
-  chatEl.scrollTop = chatEl.scrollHeight;
+  smartScrollToBottom();
 }
 
 function renderChatList(){
@@ -695,7 +685,7 @@ async function typewriter(el, text, speed=10){
 
   for(let i=0; i<text.length; i++){
     cursor.insertAdjacentText("beforebegin", text[i]);
-    chatEl.scrollTop = chatEl.scrollHeight;
+    smartScrollToBottom();
     await sleep(speed + Math.random()*8);
   }
   cursor.remove();
@@ -718,7 +708,7 @@ async function send(){
   input.value = "";
   autoResize();
 
-  // ✅ Override (no Worker call)
+  // ✅ Override
   if(isInsultOrThreat(msg)){
     const reply = "Why Julian";
     addBubble("ai", reply);
@@ -727,6 +717,9 @@ async function send(){
     renderChatList();
     return;
   }
+
+  // snapshot pin state BEFORE typing starts
+  pinnedToBottom = isNearBottom(chatEl);
 
   const waitingBubble = addBubble("ai", "", true);
 
