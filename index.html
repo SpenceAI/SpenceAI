@@ -444,11 +444,9 @@ body.logged-out .sidebar .chatList{
   <div class="composerInner">
 
     <input id="imagePick" type="file" accept="image/*" hidden>
-
     <button class="iconBtn" id="attachBtn" title="Attach image">📎</button>
 
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-
     <button class="send" id="sendBtn" aria-label="Send">➤</button>
 
   </div>
@@ -470,21 +468,17 @@ const attachBtn = document.getElementById("attachBtn");
 const imagePick = document.getElementById("imagePick");
 
 let attachedImage = null;
+
+/* Image attach */
 attachBtn.onclick = () => imagePick.click();
 
 imagePick.onchange = e => {
-
   const file = e.target.files[0];
   if(!file) return;
 
   const reader = new FileReader();
-
-  reader.onload = () => {
-    attachedImage = reader.result;
-  };
-
+  reader.onload = () => { attachedImage = reader.result; };
   reader.readAsDataURL(file);
-
 };
 
 const newChatBtn = document.getElementById("newChatBtn");
@@ -810,21 +804,26 @@ async function send(){
   if(isTypingNow) return;
 
   const msg = input.value.trim();
-  if(!msg) return;
+  if(!msg && !attachedImage) return;  // ✅ allow image-only
 
   const c = getActiveChat();
 
-  if(c.title && c.title.startsWith("New chat")){
+  if(msg && c.title && c.title.startsWith("New chat")){
     c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
   }
 
-  addBubble("you", msg);
-  c.messages.push({ role:"user", content: msg });
+  if(msg){
+    addBubble("you", msg);
+    c.messages.push({ role:"user", content: msg });
+  } else {
+    addBubble("you", "[Image]");
+    c.messages.push({ role:"user", content: "Analyze the attached image." });
+  }
 
   input.value = "";
   autoResize();
 
-  if(isInsultOrThreat(msg)){
+  if(msg && isInsultOrThreat(msg)){
     const reply = "Why Julian";
     addBubble("ai", reply);
     c.messages.push({ role:"assistant", content: reply });
@@ -838,36 +837,33 @@ async function send(){
 
   const waitingBubble = addBubble("ai", "", true);
 
-try{
-  const res = await fetch(WORKER_URL, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({
-      messages: c.messages,
-      imageUrl: attachedImage
-    })
-  });
+  try{
+    const res = await fetch(WORKER_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        messages: c.messages,
+        imageUrl: attachedImage
+      })
+    });
 
-  const data = await res.json();
-  const reply = data.reply || "(no reply)";
+    const data = await res.json();
+    const reply = data.reply || "(no reply)";
 
-  waitingBubble.innerHTML = "";
-  await typewriter(waitingBubble, reply, 10);
+    waitingBubble.innerHTML = "";
+    await typewriter(waitingBubble, reply, 10);
 
-  c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
-  persistAll();
-  renderChatList();
-}
-catch(e){
-  waitingBubble.textContent = "Server error.";
-}
-finally{
-  setTypingLock(false);
-
-  attachedImage = null;
-  imagePick.value = "";
-}
-
+    c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
+    persistAll();
+    renderChatList();
+  }catch(e){
+    waitingBubble.textContent = "Server error.";
+  }finally{
+    setTypingLock(false);
+    attachedImage = null;
+    imagePick.value = "";
+  }
+} // ✅ THIS was missing in your version (closes send())
 
 /* Button click: Send OR Stop */
 sendBtn.onclick = ()=>{
@@ -934,6 +930,6 @@ authBtn.addEventListener("click", async ()=>{
 supabaseAuth.auth.onAuthStateChange(() => refreshAuthUI());
 refreshAuthUI();
 </script>
-  
+
 </body>
 </html>
