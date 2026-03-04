@@ -443,13 +443,24 @@ body.logged-out .sidebar .chatList{
 <div class="composer">
   <div class="composerInner">
 
-    <input id="imagePick" type="file" accept="image/*" hidden>
-    <button class="iconBtn" id="attachBtn" title="Attach image">📎</button>
+<input id="imagePick" type="file" accept="image/*" hidden>
 
-    <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-    <button class="send" id="sendBtn" aria-label="Send">➤</button>
+<!-- Image preview ABOVE text -->
+<div class="imgChip" id="imgChip">
+  <img class="imgThumb" id="imgThumb" alt="preview">
+  <div class="imgName" id="imgName"></div>
+  <button class="imgRemove" id="imgRemove" type="button">✕</button>
+</div>
 
-  </div>
+<!-- Input row -->
+<div class="inputRow">
+  <button class="iconBtn" id="attachBtn" title="Attach image" type="button">📎</button>
+
+  <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+
+  <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
+</div>
+
 </div>
 
 <script>
@@ -466,6 +477,10 @@ const sendBtn = document.getElementById("sendBtn");
 
 const attachBtn = document.getElementById("attachBtn");
 const imagePick = document.getElementById("imagePick");
+const imgChip = document.getElementById("imgChip");
+const imgThumb = document.getElementById("imgThumb");
+const imgName = document.getElementById("imgName");
+const imgRemove = document.getElementById("imgRemove");
 
 let attachedImage = null;
 
@@ -473,6 +488,23 @@ let attachedImage = null;
 attachBtn.onclick = () => imagePick.click();
 
 imagePick.onchange = e => {
+
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    attachedImage = reader.result;
+
+    imgThumb.src = attachedImage;
+    imgName.textContent = file.name || "image";
+
+    imgChip.style.display = "flex";
+  };
+
+  reader.readAsDataURL(file);
+};
   const file = e.target.files[0];
   if(!file) return;
 
