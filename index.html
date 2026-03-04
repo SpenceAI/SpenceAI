@@ -442,8 +442,15 @@ body.logged-out .sidebar .chatList{
 
 <div class="composer">
   <div class="composerInner">
+
+    <input id="imagePick" type="file" accept="image/*" hidden>
+
+    <button class="iconBtn" id="attachBtn" title="Attach image">📎</button>
+
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+
     <button class="send" id="sendBtn" aria-label="Send">➤</button>
+
   </div>
 </div>
 
@@ -458,6 +465,28 @@ const LS_ACTIVE = "spenceai_active_chat_v1";
 const chatEl = document.getElementById("chat");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("sendBtn");
+
+const attachBtn = document.getElementById("attachBtn");
+const imagePick = document.getElementById("imagePick");
+
+let attachedImage = null;
+attachBtn.onclick = () => imagePick.click();
+
+imagePick.onchange = e => {
+
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    attachedImage = reader.result;
+  };
+
+  reader.readAsDataURL(file);
+
+};
+
 const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
 const overlay = document.getElementById("overlay");
@@ -813,8 +842,10 @@ async function send(){
     const res = await fetch(WORKER_URL, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ messages: c.messages })
-    });
+     body: JSON.stringify({
+  messages: c.messages,
+  imageUrl: attachedImage
+})
 
     const data = await res.json();
     const reply = data.reply || "(no reply)";
@@ -827,9 +858,11 @@ async function send(){
     renderChatList();
   }catch{
     waitingBubble.textContent = "Server error.";
-  }finally{
-    setTypingLock(false);
-  }
+}finally{
+  setTypingLock(false);
+
+  attachedImage = null;
+  imagePick.value = "";
 }
 
 /* Button click: Send OR Stop */
