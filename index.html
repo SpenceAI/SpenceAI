@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SpenceAI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -203,9 +206,40 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   backdrop-filter:blur(10px);
   background:rgba(11,15,22,.55);
   padding-right:74px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
 }
 .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
 .subtitle{font-size:12px;color:var(--muted);}
+
+.topbarLeft{display:flex;flex-direction:column;gap:2px;}
+.topbarRight{display:flex;align-items:center;gap:10px;}
+
+/* Login button */
+.authBtn{
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.35);
+  color:var(--text);
+  border-radius:14px;
+  padding:10px 12px;
+  cursor:pointer;
+  font-weight:600;
+}
+.authBtn:hover{ background:rgba(20,29,46,.55); }
+.authPill{
+  border:1px solid var(--border);
+  background:rgba(20,29,46,.25);
+  color:var(--muted);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  max-width:240px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
 /* Chat */
 .chatWrap{
@@ -223,7 +257,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   margin:0 auto;
   min-height:0;
 
-  /* hide scrollbar but keep scroll */
   scrollbar-width:none;
   -ms-overflow-style:none;
   overscroll-behavior:contain;
@@ -290,7 +323,7 @@ textarea{
   font-family:'Inter', sans-serif;
 }
 
-/* ✅ Square send button (and becomes Stop while typing) */
+/* Square send button (Stop while typing) */
 .send{
   width:48px;
   height:48px;
@@ -307,7 +340,6 @@ textarea{
   user-select:none;
 }
 
-/* Disabled input styles while AI is typing */
 textarea:disabled{
   opacity:.65;
   cursor:not-allowed;
@@ -354,13 +386,19 @@ textarea:disabled{
   .bubble{ max-width:88%; }
   .chat{ padding-bottom: 190px; }
   .bookBtn{ top:12px; right:12px; }
-
   .send{ width:46px; height:46px; border-radius:14px; }
+}
+
+/* ✅ Logged out: hide chat storage UI */
+body.logged-out .sidebar .sbtn,
+body.logged-out .sidebar .sectionTitle,
+body.logged-out .sidebar .chatList{
+  display:none !important;
 }
 </style>
 </head>
 
-<body class="sidebar-closed">
+<body class="sidebar-closed logged-out">
 
 <div class="overlay" id="overlay"></div>
 <button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
@@ -372,7 +410,7 @@ textarea:disabled{
       <div class="logoDot"></div>
       <div>
         <div class="brandTitle">SpenceAI</div>
-        <div class="brandSub">Saved chats</div>
+        <div class="brandSub" id="brandSub">Log in to view chats</div>
       </div>
     </div>
 
@@ -384,8 +422,15 @@ textarea:disabled{
 
   <main class="main">
     <header class="topbar">
-      <div class="title">SpenceAI</div>
-      <div class="subtitle">Dark mode • Saved chats</div>
+      <div class="topbarLeft">
+        <div class="title">SpenceAI</div>
+        <div class="subtitle">Dark mode • Saved chats</div>
+      </div>
+
+      <div class="topbarRight">
+        <div class="authPill" id="authPill">Logged out</div>
+        <button class="authBtn" id="authBtn">Log in</button>
+      </div>
     </header>
 
     <section class="chatWrap">
@@ -417,18 +462,18 @@ const newChatBtn = document.getElementById("newChatBtn");
 const chatListEl = document.getElementById("chatList");
 const overlay = document.getElementById("overlay");
 const bookBtn = document.getElementById("bookBtn");
+const authBtn = document.getElementById("authBtn");
+const authPill = document.getElementById("authPill");
+const brandSub = document.getElementById("brandSub");
 
 /* ✅ Smart scroll: ONLY stick to bottom if user is near bottom */
 let pinnedToBottom = true;
-
 function isNearBottom(el, threshold = 80){
   return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 }
-
 chatEl.addEventListener("scroll", () => {
   pinnedToBottom = isNearBottom(chatEl);
 }, { passive: true });
-
 function smartScrollToBottom(){
   if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
 }
@@ -439,25 +484,19 @@ let cancelRequested = false;
 
 function setTypingLock(locked){
   isTypingNow = locked;
-
-  // only lock the input (you can still click the button to stop)
   input.disabled = locked;
 
-  // button becomes Stop while typing
   if(locked){
-    sendBtn.textContent = "■";        // stop square
+    sendBtn.textContent = "■";
     sendBtn.setAttribute("aria-label", "Stop");
   } else {
-    sendBtn.textContent = "➤";        // send arrow
+    sendBtn.textContent = "➤";
     sendBtn.setAttribute("aria-label", "Send");
     cancelRequested = false;
     input.focus();
   }
 }
-
-function requestCancelTyping(){
-  cancelRequested = true;
-}
+function requestCancelTyping(){ cancelRequested = true; }
 
 /* Sidebar controls */
 function openSidebar(){
@@ -472,7 +511,6 @@ function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
-
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
@@ -708,7 +746,6 @@ window.addEventListener("keydown", (e)=>{
 
 /* Linear typing */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
 function isSentenceEnd(ch, nextCh){
   const end = /[.!?]/.test(ch);
   const boundary = !nextCh || /\s|\n/.test(nextCh);
@@ -729,7 +766,6 @@ async function typewriter(el, text, speed=10){
     cursor.insertAdjacentText("beforebegin", ch);
     smartScrollToBottom();
 
-    // ✅ If stop requested: finish current sentence then stop
     if(cancelRequested && isSentenceEnd(ch, nextCh)){
       break;
     }
@@ -759,7 +795,6 @@ async function send(){
   input.value = "";
   autoResize();
 
-  // Override
   if(isInsultOrThreat(msg)){
     const reply = "Why Julian";
     addBubble("ai", reply);
@@ -770,7 +805,6 @@ async function send(){
   }
 
   setTypingLock(true);
-
   pinnedToBottom = isNearBottom(chatEl);
 
   const waitingBubble = addBubble("ai", "", true);
@@ -798,7 +832,7 @@ async function send(){
   }
 }
 
-/* ✅ Button click: Send OR Stop */
+/* Button click: Send OR Stop */
 sendBtn.onclick = ()=>{
   if(isTypingNow) requestCancelTyping();
   else send();
@@ -815,6 +849,54 @@ input.addEventListener("keydown", e=>{
 /* Boot */
 renderChatList();
 renderChatMessages();
+</script>
+
+<script>
+const supabase = window.supabase.createClient(
+  "https://zfwjtvnxkylginwlxgto.supabase.co",
+  "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
+);
+
+async function loginWithGoogle() {
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: "https://spenceai.github.io/SpenceAI/"
+    }
+  });
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+}
+
+async function refreshAuthUI(){
+  const { data } = await supabase.auth.getSession();
+  const session = data?.session;
+
+  document.body.classList.toggle("logged-in", !!session);
+  document.body.classList.toggle("logged-out", !session);
+
+  if(session){
+    const email = session.user?.email || "Logged in";
+    authPill.textContent = email;
+    authBtn.textContent = "Log out";
+    brandSub.textContent = "Saved chats";
+  }else{
+    authPill.textContent = "Logged out";
+    authBtn.textContent = "Log in";
+    brandSub.textContent = "Log in to view chats";
+  }
+}
+
+authBtn.addEventListener("click", async ()=>{
+  const { data } = await supabase.auth.getSession();
+  if(data?.session) logout();
+  else loginWithGoogle();
+});
+
+supabase.auth.onAuthStateChange(() => refreshAuthUI());
+refreshAuthUI();
 </script>
 
 </body>
