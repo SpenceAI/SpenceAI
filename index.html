@@ -845,7 +845,7 @@ async function send(){
      body: JSON.stringify({
   messages: c.messages,
   imageUrl: attachedImage
-})
+});
 
     const data = await res.json();
     const reply = data.reply || "(no reply)";
