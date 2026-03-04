@@ -838,32 +838,36 @@ async function send(){
 
   const waitingBubble = addBubble("ai", "", true);
 
-  try{
-    const res = await fetch(WORKER_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-     body: JSON.stringify({
-  messages: c.messages,
-  imageUrl: attachedImage
-});
+try{
+  const res = await fetch(WORKER_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      messages: c.messages,
+      imageUrl: attachedImage
+    })
+  });
 
-    const data = await res.json();
-    const reply = data.reply || "(no reply)";
+  const data = await res.json();
+  const reply = data.reply || "(no reply)";
 
-    waitingBubble.innerHTML = "";
-    await typewriter(waitingBubble, reply, 10);
+  waitingBubble.innerHTML = "";
+  await typewriter(waitingBubble, reply, 10);
 
-    c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
-    persistAll();
-    renderChatList();
-  }catch{
-    waitingBubble.textContent = "Server error.";
-}finally{
+  c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
+  persistAll();
+  renderChatList();
+}
+catch(e){
+  waitingBubble.textContent = "Server error.";
+}
+finally{
   setTypingLock(false);
 
   attachedImage = null;
   imagePick.value = "";
 }
+
 
 /* Button click: Send OR Stop */
 sendBtn.onclick = ()=>{
