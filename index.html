@@ -223,6 +223,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   margin:0 auto;
   min-height:0;
 
+  /* hide scrollbar but keep scroll */
   scrollbar-width:none;
   -ms-overflow-style:none;
   overscroll-behavior:contain;
@@ -289,25 +290,25 @@ textarea{
   font-family:'Inter', sans-serif;
 }
 
-/* ✅ Wider send button */
+/* ✅ Square send button (and becomes Stop while typing) */
 .send{
-  height:44px;
-  min-width:120px;      /* ✅ makes it wider */
-  padding:0 26px;       /* ✅ extra width */
+  width:48px;
+  height:48px;
+  padding:0;
   border:none;
-  border-radius:16px;
+  border-radius:14px;
   color:white;
-  font-weight:700;
+  font-weight:800;
   cursor:pointer;
   background:linear-gradient(135deg,var(--you1),var(--you2));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  user-select:none;
 }
 
-/* ✅ Disabled input styles while AI is typing */
+/* Disabled input styles while AI is typing */
 textarea:disabled{
-  opacity:.65;
-  cursor:not-allowed;
-}
-.send:disabled{
   opacity:.65;
   cursor:not-allowed;
 }
@@ -354,8 +355,7 @@ textarea:disabled{
   .chat{ padding-bottom: 190px; }
   .bookBtn{ top:12px; right:12px; }
 
-  /* Slightly smaller on mobile if needed */
-  .send{ min-width:104px; padding:0 20px; }
+  .send{ width:46px; height:46px; border-radius:14px; }
 }
 </style>
 </head>
@@ -398,7 +398,7 @@ textarea:disabled{
 <div class="composer">
   <div class="composerInner">
     <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-    <button class="send" id="sendBtn">Send</button>
+    <button class="send" id="sendBtn" aria-label="Send">➤</button>
   </div>
 </div>
 
@@ -418,27 +418,45 @@ const chatListEl = document.getElementById("chatList");
 const overlay = document.getElementById("overlay");
 const bookBtn = document.getElementById("bookBtn");
 
-/* ✅ Smart scroll */
+/* ✅ Smart scroll: ONLY stick to bottom if user is near bottom */
 let pinnedToBottom = true;
+
 function isNearBottom(el, threshold = 80){
   return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 }
+
 chatEl.addEventListener("scroll", () => {
   pinnedToBottom = isNearBottom(chatEl);
 }, { passive: true });
+
 function smartScrollToBottom(){
   if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
 }
 
-/* ✅ Lock typing while AI is typing */
+/* ✅ Typing lock + Stop button (ChatGPT-style stop after sentence) */
 let isTypingNow = false;
+let cancelRequested = false;
+
 function setTypingLock(locked){
   isTypingNow = locked;
+
+  // only lock the input (you can still click the button to stop)
   input.disabled = locked;
-  sendBtn.disabled = locked;
-  if(!locked){
+
+  // button becomes Stop while typing
+  if(locked){
+    sendBtn.textContent = "■";        // stop square
+    sendBtn.setAttribute("aria-label", "Stop");
+  } else {
+    sendBtn.textContent = "➤";        // send arrow
+    sendBtn.setAttribute("aria-label", "Send");
+    cancelRequested = false;
     input.focus();
   }
+}
+
+function requestCancelTyping(){
+  cancelRequested = true;
 }
 
 /* Sidebar controls */
@@ -454,6 +472,7 @@ function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
+
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
@@ -502,21 +521,12 @@ function isInsultOrThreat(text){
   if(threatYou.test(norm)) score += 7;
 
   if(/\bkys\b/.test(norm)) score += 7;
-  if(/\bkill\s+yourself\b/.test(norm)) score += 7;
 
   if(directYou && /\bkill\b/.test(norm)) score += 3;
-
   if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
 
-  const profanity = [
-    "fuck","fucking","fuk","shit","shitty","bitch","bastard","cunt",
-    "dick","pussy","asshole","retard","slut","whore"
-  ];
-  const insultAdj = [
-    "stupid","dumb","idiot","moron","trash","useless","pathetic","loser",
-    "terrible","awful","worthless","annoying","garbage","lame","cringe",
-    "ugly","weak","embarrassing"
-  ];
+  const profanity = ["fuck","fucking","fuk","shit","shitty","bitch","bastard","cunt","dick","pussy","asshole","retard","slut","whore"];
+  const insultAdj = ["stupid","dumb","idiot","moron","trash","useless","pathetic","loser","terrible","awful","worthless","annoying","garbage","lame","cringe","ugly","weak","embarrassing"];
   const hardPhrases = ["i hate you","you suck","go die","die"];
 
   for(const p of hardPhrases){
@@ -699,6 +709,12 @@ window.addEventListener("keydown", (e)=>{
 /* Linear typing */
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+function isSentenceEnd(ch, nextCh){
+  const end = /[.!?]/.test(ch);
+  const boundary = !nextCh || /\s|\n/.test(nextCh);
+  return end && boundary;
+}
+
 async function typewriter(el, text, speed=10){
   el.innerHTML = "";
   const cursor = document.createElement("span");
@@ -707,16 +723,26 @@ async function typewriter(el, text, speed=10){
   el.appendChild(cursor);
 
   for(let i=0; i<text.length; i++){
-    cursor.insertAdjacentText("beforebegin", text[i]);
+    const ch = text[i];
+    const nextCh = text[i+1];
+
+    cursor.insertAdjacentText("beforebegin", ch);
     smartScrollToBottom();
+
+    // ✅ If stop requested: finish current sentence then stop
+    if(cancelRequested && isSentenceEnd(ch, nextCh)){
+      break;
+    }
+
     await sleep(speed + Math.random()*8);
   }
+
   cursor.remove();
 }
 
 /* Send */
 async function send(){
-  if(isTypingNow) return; // ✅ extra safety
+  if(isTypingNow) return;
 
   const msg = input.value.trim();
   if(!msg) return;
@@ -733,7 +759,7 @@ async function send(){
   input.value = "";
   autoResize();
 
-  // ✅ Override
+  // Override
   if(isInsultOrThreat(msg)){
     const reply = "Why Julian";
     addBubble("ai", reply);
@@ -743,10 +769,8 @@ async function send(){
     return;
   }
 
-  // lock typing while AI responds
   setTypingLock(true);
 
-  // snapshot pin state before typing starts
   pinnedToBottom = isNearBottom(chatEl);
 
   const waitingBubble = addBubble("ai", "", true);
@@ -764,20 +788,24 @@ async function send(){
     waitingBubble.innerHTML = "";
     await typewriter(waitingBubble, reply, 10);
 
-    c.messages.push({ role:"assistant", content: reply });
+    c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
     persistAll();
     renderChatList();
   }catch{
     waitingBubble.textContent = "Server error.";
   }finally{
-    // unlock typing after AI finishes typing
     setTypingLock(false);
   }
 }
 
-sendBtn.onclick = send;
+/* ✅ Button click: Send OR Stop */
+sendBtn.onclick = ()=>{
+  if(isTypingNow) requestCancelTyping();
+  else send();
+};
+
 input.addEventListener("keydown", e=>{
-  if(isTypingNow) return; // ✅ block Enter while typing
+  if(isTypingNow) return;
   if(e.key==="Enter" && !e.shiftKey){
     e.preventDefault();
     send();
