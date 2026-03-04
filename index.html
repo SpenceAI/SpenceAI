@@ -32,7 +32,7 @@ body{
     radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
     var(--bg);
   color:var(--text);
-  overflow:hidden; /* scroll happens inside .chat */
+  overflow:hidden;
 }
 
 /* Desktop layout */
@@ -40,10 +40,8 @@ body{
   height:100%;
   display:grid;
   grid-template-columns: 280px 1fr;
-  min-height:0; /* ✅ helps scroll inside grid */
+  min-height:0;
 }
-
-/* Desktop collapse */
 body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
 /* Sidebar */
@@ -78,6 +76,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   right:14px;
   top:14px;
   z-index:80;
+
   width:46px;
   height:46px;
   border-radius:16px;
@@ -85,9 +84,11 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   background:rgba(20,29,46,.60);
   color:var(--text);
   cursor:pointer;
+
   display:flex;
   align-items:center;
   justify-content:center;
+
   box-shadow: 0 10px 30px rgba(0,0,0,.30);
 }
 .bookBtn:hover{ background:rgba(20,29,46,.78); }
@@ -192,7 +193,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   height:100%;
   display:flex;
   flex-direction:column;
-  min-height:0; /* ✅ critical for scroll inside flex */
+  min-height:0;
 }
 
 /* Topbar */
@@ -211,7 +212,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   flex:1;
   overflow:hidden;
   position:relative;
-  min-height:0; /* ✅ critical */
+  min-height:0;
 }
 .chat{
   height:100%;
@@ -220,9 +221,8 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   max-width:980px;
   width:100%;
   margin:0 auto;
-  min-height:0; /* ✅ critical */
+  min-height:0;
 
-  /* ✅ hide scrollbar but keep scrolling */
   scrollbar-width:none;
   -ms-overflow-style:none;
   overscroll-behavior:contain;
@@ -230,7 +230,6 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 }
 .chat::-webkit-scrollbar{ display:none; }
 
-/* Rows */
 .row{display:flex;margin:14px 0;}
 .row.you{justify-content:flex-end;}
 .row.ai{justify-content:flex-start;}
@@ -274,6 +273,7 @@ body.sidebar-closed .sidebar{ transform: translateX(-100%); }
   gap:10px;
   align-items:flex-end;
 }
+
 textarea{
   flex:1;
   resize:none;
@@ -288,15 +288,28 @@ textarea{
   overflow:auto;
   font-family:'Inter', sans-serif;
 }
+
+/* ✅ Wider send button */
 .send{
   height:44px;
+  min-width:120px;      /* ✅ makes it wider */
+  padding:0 26px;       /* ✅ extra width */
   border:none;
   border-radius:16px;
-  padding:0 18px;
   color:white;
   font-weight:700;
   cursor:pointer;
   background:linear-gradient(135deg,var(--you1),var(--you2));
+}
+
+/* ✅ Disabled input styles while AI is typing */
+textarea:disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
+.send:disabled{
+  opacity:.65;
+  cursor:not-allowed;
 }
 
 /* Typing dots */
@@ -340,6 +353,9 @@ textarea{
   .bubble{ max-width:88%; }
   .chat{ padding-bottom: 190px; }
   .bookBtn{ top:12px; right:12px; }
+
+  /* Slightly smaller on mobile if needed */
+  .send{ min-width:104px; padding:0 20px; }
 }
 </style>
 </head>
@@ -402,19 +418,27 @@ const chatListEl = document.getElementById("chatList");
 const overlay = document.getElementById("overlay");
 const bookBtn = document.getElementById("bookBtn");
 
-/* ✅ Smart scroll: ONLY stick to bottom if user is near bottom */
+/* ✅ Smart scroll */
 let pinnedToBottom = true;
-
 function isNearBottom(el, threshold = 80){
   return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 }
-
 chatEl.addEventListener("scroll", () => {
   pinnedToBottom = isNearBottom(chatEl);
 }, { passive: true });
-
 function smartScrollToBottom(){
   if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+/* ✅ Lock typing while AI is typing */
+let isTypingNow = false;
+function setTypingLock(locked){
+  isTypingNow = locked;
+  input.disabled = locked;
+  sendBtn.disabled = locked;
+  if(!locked){
+    input.focus();
+  }
 }
 
 /* Sidebar controls */
@@ -430,7 +454,6 @@ function toggleSidebar(){
   if(document.body.classList.contains("sidebar-open")) closeSidebar();
   else openSidebar();
 }
-
 bookBtn.addEventListener("click", toggleSidebar);
 overlay.addEventListener("click", closeSidebar);
 
@@ -693,6 +716,8 @@ async function typewriter(el, text, speed=10){
 
 /* Send */
 async function send(){
+  if(isTypingNow) return; // ✅ extra safety
+
   const msg = input.value.trim();
   if(!msg) return;
 
@@ -718,7 +743,10 @@ async function send(){
     return;
   }
 
-  // snapshot pin state BEFORE typing starts
+  // lock typing while AI responds
+  setTypingLock(true);
+
+  // snapshot pin state before typing starts
   pinnedToBottom = isNearBottom(chatEl);
 
   const waitingBubble = addBubble("ai", "", true);
@@ -741,11 +769,15 @@ async function send(){
     renderChatList();
   }catch{
     waitingBubble.textContent = "Server error.";
+  }finally{
+    // unlock typing after AI finishes typing
+    setTypingLock(false);
   }
 }
 
 sendBtn.onclick = send;
 input.addEventListener("keydown", e=>{
+  if(isTypingNow) return; // ✅ block Enter while typing
   if(e.key==="Enter" && !e.shiftKey){
     e.preventDefault();
     send();
