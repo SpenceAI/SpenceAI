@@ -28,7 +28,10 @@
 
     body{
       margin:0;
-      font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      font-family:
+        'Inter',
+        system-ui, -apple-system, Segoe UI, Roboto, Arial,
+        "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
       background:
         radial-gradient(1200px 700px at 25% -10%, rgba(43,108,255,.20), transparent 60%),
         radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
@@ -37,6 +40,7 @@
       overflow:hidden;
     }
 
+    /* Desktop layout */
     .app{
       height:100%;
       display:grid;
@@ -45,6 +49,7 @@
     }
     body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
+    /* Sidebar */
     .sidebar{
       border-right:1px solid var(--border);
       background:rgba(11,15,22,.55);
@@ -59,6 +64,7 @@
     }
     body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 
+    /* Overlay */
     .overlay{
       position:fixed;
       inset:0;
@@ -69,6 +75,7 @@
       z-index:40;
     }
 
+    /* Book button */
     .bookBtn{
       position:fixed;
       right:14px;
@@ -91,6 +98,7 @@
     }
     .bookBtn:hover{ background:rgba(20,29,46,.78); }
 
+    /* Sidebar content */
     .brand{
       display:flex;align-items:center;gap:10px;
       padding:10px 12px;
@@ -185,6 +193,7 @@
     }
     .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
+    /* Main */
     .main{
       height:100%;
       display:flex;
@@ -192,6 +201,7 @@
       min-height:0;
     }
 
+    /* Topbar */
     .topbar{
       padding:14px 18px;
       border-bottom:1px solid var(--border);
@@ -209,6 +219,7 @@
     .topbarLeft{display:flex;flex-direction:column;gap:2px;}
     .topbarRight{display:flex;align-items:center;gap:10px;}
 
+    /* Login button */
     .authBtn{
       border:1px solid var(--border);
       background:rgba(20,29,46,.35);
@@ -232,6 +243,7 @@
       text-overflow:ellipsis;
     }
 
+    /* Chat */
     .chatWrap{
       flex:1;
       overflow:hidden;
@@ -241,7 +253,7 @@
     .chat{
       height:100%;
       overflow-y:auto;
-      padding:22px 18px 200px;
+      padding:22px 18px 190px;
       max-width:980px;
       width:100%;
       margin:0 auto;
@@ -279,6 +291,16 @@
       border-bottom-left-radius:8px;
     }
 
+    /* images inside chat bubbles */
+    .bubbleImg{
+      display:block;
+      width:min(360px, 70vw);
+      max-width:100%;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      margin:0 0 10px 0;
+    }
+
     /* Composer */
     .composer{
       position:fixed;
@@ -290,8 +312,6 @@
       backdrop-filter:blur(12px);
       z-index:60;
     }
-
-    /* stack preview ABOVE the input row */
     .composerInner{
       max-width:980px;
       margin:0 auto;
@@ -299,7 +319,6 @@
       flex-direction:column;
       gap:10px;
     }
-
     .inputRow{
       display:flex;
       gap:10px;
@@ -318,9 +337,13 @@
       min-height:44px;
       max-height:180px;
       overflow:auto;
-      font-family:'Inter', sans-serif;
+      font-family:
+        'Inter',
+        system-ui, -apple-system, Segoe UI, Roboto, Arial,
+        "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
     }
 
+    /* Send button (Stop while typing) */
     .send{
       width:48px;
       height:48px;
@@ -337,12 +360,28 @@
       user-select:none;
     }
 
-    textarea:disabled{
-      opacity:.65;
-      cursor:not-allowed;
+    /* Attach button: SAME height as textarea row, thicker icon, narrow */
+    .attachBtn{
+      width:40px;          /* narrow */
+      height:44px;         /* same as textarea min-height */
+      padding:0;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(20,29,46,.35);
+      color:var(--text);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:none;
     }
+    .attachBtn:hover{ background:rgba(20,29,46,.55); }
+    .attachBtn svg{ width:18px; height:18px; display:block; }
+    .attachBtn svg path{ stroke-width:2.6; } /* “thicker” */
 
-    /* typing dots */
+    textarea:disabled{ opacity:.65; cursor:not-allowed; }
+
+    /* Typing dots */
     .dots{display:inline-flex;gap:5px;align-items:center;height:16px;}
     .dot{width:6px;height:6px;border-radius:50%;background:rgba(232,238,252,.8);opacity:.35;animation:b 1s infinite ease-in-out;}
     .dot:nth-child(2){animation-delay:.15s;}
@@ -355,12 +394,9 @@
       opacity:.9;
       animation:blink 1s step-end infinite;
     }
-    @keyframes blink{
-      0%,50%{opacity:1;}
-      50.01%,100%{opacity:0;}
-    }
+    @keyframes blink{ 0%,50%{opacity:1;} 50.01%,100%{opacity:0;} }
 
-    /* ChatGPT-style preview (above input) */
+    /* Preview chip (ABOVE input) */
     .imgChip{
       display:none;
       align-items:center;
@@ -375,7 +411,7 @@
       height:54px;
       border-radius:12px;
       object-fit:cover;
-      border:1px solid var(--border);
+      border:1px solid rgba(255,255,255,.12);
     }
     .imgName{
       flex:1;
@@ -396,9 +432,11 @@
       display:flex;
       align-items:center;
       justify-content:center;
+      flex:none;
     }
     .imgRemove:hover{ background:rgba(20,29,46,.55); }
 
+    /* Mobile */
     @media (max-width: 900px){
       .main{ height:100dvh; }
       .app{ display:block; height:100dvh; }
@@ -418,11 +456,13 @@
       }
 
       .bubble{ max-width:88%; }
-      .chat{ padding-bottom: 240px; }
+      .chat{ padding-bottom: 230px; }
       .bookBtn{ top:12px; right:12px; }
       .send{ width:46px; height:46px; border-radius:14px; }
+      .attachBtn{ height:44px; width:40px; }
     }
 
+    /* Logged out: hide chat storage UI */
     body.logged-out .sidebar .sbtn,
     body.logged-out .sidebar .sectionTitle,
     body.logged-out .sidebar .chatList{
@@ -434,10 +474,9 @@
 <body class="sidebar-closed logged-out">
 
   <div class="overlay" id="overlay"></div>
-  <button class="bookBtn" id="bookBtn" title="Open chat storage">📖</button>
+  <button class="bookBtn" id="bookBtn" title="Open chat storage" type="button">📖</button>
 
   <div class="app">
-
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="logoDot"></div>
@@ -447,8 +486,7 @@
         </div>
       </div>
 
-      <button class="sbtn" id="newChatBtn">New chat <span class="badge">Ctrl+K</span></button>
-
+      <button class="sbtn" id="newChatBtn" type="button">New chat <span class="badge">Ctrl+K</span></button>
       <div class="sectionTitle">Your chats</div>
       <div class="chatList" id="chatList"></div>
     </aside>
@@ -470,15 +508,13 @@
         <div class="chat" id="chat"></div>
       </section>
     </main>
-
   </div>
 
   <div class="composer">
     <div class="composerInner">
-
       <input id="imagePick" type="file" accept="image/*" hidden>
 
-      <!-- preview ABOVE text -->
+      <!-- preview ABOVE the text row -->
       <div class="imgChip" id="imgChip">
         <img class="imgThumb" id="imgThumb" alt="preview">
         <div class="imgName" id="imgName"></div>
@@ -487,20 +523,28 @@
 
       <!-- input row -->
       <div class="inputRow">
-        <button class="iconBtn" id="attachBtn" title="Attach image" type="button">📎</button>
+        <button class="attachBtn" id="attachBtn" title="Attach image" type="button" aria-label="Attach image">
+          <!-- paperclip svg (same height as bar + thicker but narrow) -->
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 12.5l6.6-6.6a3.2 3.2 0 014.5 4.5L10.6 19a5 5 0 01-7.1-7.1l8.2-8.2"
+                  stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
         <textarea id="input" placeholder="Message SpenceAI…"></textarea>
         <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
       </div>
-
     </div>
   </div>
 
   <script>
     const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
+    /* Storage */
     const LS_KEY = "spenceai_chats_v1";
     const LS_ACTIVE = "spenceai_active_chat_v1";
 
+    /* DOM */
     const chatEl = document.getElementById("chat");
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("sendBtn");
@@ -517,11 +561,10 @@
     const chatListEl = document.getElementById("chatList");
     const overlay = document.getElementById("overlay");
     const bookBtn = document.getElementById("bookBtn");
+
     const authBtn = document.getElementById("authBtn");
     const authPill = document.getElementById("authPill");
     const brandSub = document.getElementById("brandSub");
-
-    let attachedImage = null;
 
     /* Smart scroll */
     let pinnedToBottom = true;
@@ -555,7 +598,7 @@
     }
     function requestCancelTyping(){ cancelRequested = true; }
 
-    /* Sidebar */
+    /* Sidebar controls */
     function openSidebar(){
       document.body.classList.add("sidebar-open");
       document.body.classList.remove("sidebar-closed");
@@ -645,14 +688,11 @@
       const t = (text || "").trim();
       if(!t) return false;
 
-      // hard length limit (prevents huge spam)
       if(t.length > 1500) return true;
 
-      // ratio checks
-      let letters = 0, digits = 0, spaces = 0, symbols = 0, vowels = 0;
+      let letters = 0, spaces = 0, symbols = 0, vowels = 0;
       for(const ch of t){
         if(/[a-zA-Z]/.test(ch)){ letters++; if(/[aeiouAEIOU]/.test(ch)) vowels++; }
-        else if(/[0-9]/.test(ch)) digits++;
         else if(/\s/.test(ch)) spaces++;
         else symbols++;
       }
@@ -663,16 +703,9 @@
       const letterRatio = letters / nonSpace;
       const vowelRatio = vowels / Math.max(1, letters);
 
-      // obvious random symbol spam
       if(symbolRatio > 0.45 && len >= 25) return true;
-
-      // lots of letters but basically no vowels → often keyboard mash
       if(letters >= 20 && vowelRatio < 0.18) return true;
-
-      // super low letters and mostly noise
       if(letterRatio < 0.25 && len >= 25) return true;
-
-      // repeated same character too much
       if(/(.)\1{12,}/.test(t)) return true;
 
       return false;
@@ -703,8 +736,10 @@
     function getActiveChat(){ return chats.find(c=>c.id===activeChatId); }
     function persistAll(){ saveAllChats(chats); }
 
-    /* UI */
-    function addBubble(role, text, isTyping=false){
+    /* UI: supports image bubble */
+    function addBubble(role, text, opts={}){
+      const { isTyping=false, imageUrl=null } = opts;
+
       const row = document.createElement("div");
       row.className = "row " + role;
 
@@ -714,7 +749,18 @@
       if(isTyping){
         bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
       } else {
-        bubble.textContent = text;
+        if(imageUrl){
+          const img = document.createElement("img");
+          img.className = "bubbleImg";
+          img.src = imageUrl;
+          img.alt = "attached image";
+          bubble.appendChild(img);
+        }
+        if(text){
+          const t = document.createElement("div");
+          t.textContent = text;
+          bubble.appendChild(t);
+        }
       }
 
       row.appendChild(bubble);
@@ -727,11 +773,16 @@
       chatEl.innerHTML = "";
       const c = getActiveChat();
       const msgs = c.messages.filter(m=>m.role!=="system");
+
       if(!msgs.length){
         addBubble("ai","I'm SpenceAI. What are we working on?");
       } else {
         for(const m of msgs){
-          addBubble(m.role === "assistant" ? "ai" : "you", m.content);
+          if(m.role === "assistant"){
+            addBubble("ai", m.content || "");
+          } else {
+            addBubble("you", m.content || "", { imageUrl: m.imageUrl || null });
+          }
         }
       }
       smartScrollToBottom();
@@ -840,6 +891,16 @@
       }
     });
 
+    /* Image attach state */
+    let attachedImage = null;
+    let attachedFileName = "";
+
+    function hidePreviewUI(){
+      imgChip.style.display = "none";
+      imgThumb.src = "";
+      imgName.textContent = "";
+    }
+
     /* Image attach + preview */
     attachBtn.onclick = () => imagePick.click();
 
@@ -850,8 +911,10 @@
       const reader = new FileReader();
       reader.onload = () => {
         attachedImage = reader.result;
+        attachedFileName = file.name || "image";
+
         imgThumb.src = attachedImage;
-        imgName.textContent = file.name || "image";
+        imgName.textContent = attachedFileName;
         imgChip.style.display = "flex";
       };
       reader.readAsDataURL(file);
@@ -859,10 +922,9 @@
 
     imgRemove.onclick = () => {
       attachedImage = null;
+      attachedFileName = "";
       imagePick.value = "";
-      imgChip.style.display = "none";
-      imgThumb.src = "";
-      imgName.textContent = "";
+      hidePreviewUI();
     };
 
     /* Linear typing */
@@ -893,7 +955,6 @@
 
         await sleep(speed + Math.random()*8);
       }
-
       cursor.remove();
     }
 
@@ -904,7 +965,6 @@
       const msg = input.value.trim();
       if(!msg && !attachedImage) return;
 
-      // local anti-spam / gibberish filter (no API call)
       if(msg && isGibberish(msg)){
         addBubble("you", msg);
         addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
@@ -917,16 +977,24 @@
         c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
       }
 
-      if(msg){
-        addBubble("you", msg);
-        c.messages.push({ role:"user", content: msg });
-      } else {
-        addBubble("you", "[Image]");
-        c.messages.push({ role:"user", content: "Analyze the attached image." });
-      }
+      // show image IN CHAT (not “[Image]”)
+      const userImageToShow = attachedImage || null;
+      const userTextToShow = msg || "";
 
+      addBubble("you", userTextToShow, { imageUrl: userImageToShow });
+      c.messages.push({
+        role: "user",
+        content: userTextToShow,
+        imageUrl: userImageToShow || undefined
+      });
+
+      // clear input immediately
       input.value = "";
       autoResize();
+
+      // if they sent a message with image, hide the preview as SOON as AI starts typing (your request)
+      // (keep attachedImage for the API call below)
+      hidePreviewUI();
 
       if(msg && isInsultOrThreat(msg)){
         const reply = "Why Julian";
@@ -934,21 +1002,29 @@
         c.messages.push({ role:"assistant", content: reply });
         persistAll();
         renderChatList();
+        attachedImage = null;
+        attachedFileName = "";
+        imagePick.value = "";
         return;
       }
 
       setTypingLock(true);
       pinnedToBottom = isNearBottom(chatEl);
 
-      const waitingBubble = addBubble("ai", "", true);
+      const waitingBubble = addBubble("ai", "", { isTyping:true });
 
       try{
+        // ONLY send {role,content} to the API (no imageUrl field in messages!)
+        const apiMessages = c.messages
+          .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
+          .map(m => ({ role: m.role, content: m.content || "" }));
+
         const res = await fetch(WORKER_URL, {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify({
-            messages: c.messages,
-            imageUrl: attachedImage
+            messages: apiMessages,
+            imageUrl: attachedImage || null
           })
         });
 
@@ -966,15 +1042,15 @@
       }finally{
         setTypingLock(false);
 
+        // reset attachment AFTER request
         attachedImage = null;
+        attachedFileName = "";
         imagePick.value = "";
-
-        imgChip.style.display = "none";
-        imgThumb.src = "";
-        imgName.textContent = "";
+        hidePreviewUI();
       }
     }
 
+    /* Button click: Send OR Stop */
     sendBtn.onclick = ()=>{
       if(isTypingNow) requestCancelTyping();
       else send();
@@ -988,29 +1064,35 @@
       }
     });
 
+    /* Boot */
     renderChatList();
     renderChatMessages();
   </script>
 
   <script>
-    // ✅ LOGIN FIX (more reliable redirect + UI refresh)
+    // LOGIN (more reliable on GitHub Pages)
     const supabaseAuth = window.supabase.createClient(
       "https://zfwjtvnxkylginwlxgto.supabase.co",
       "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
     );
 
-    function getRedirectUrl(){
-      // keeps whatever page you're on (works for GitHub Pages subpaths too)
-      return window.location.origin + window.location.pathname;
+    function githubPagesRedirect(){
+      // If your site is https://spenceai.github.io/SpenceAI/
+      // This MUST be whitelisted in Supabase Auth Redirect URLs.
+      return "https://spenceai.github.io/SpenceAI/";
     }
 
     async function loginWithGoogle() {
-      await supabaseAuth.auth.signInWithOAuth({
+      const { error } = await supabaseAuth.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getRedirectUrl()
+          redirectTo: githubPagesRedirect()
         }
       });
+      if(error){
+        console.error("Login error:", error);
+        alert("Login failed. Check Supabase Redirect URLs.");
+      }
     }
 
     async function logout() {
@@ -1018,7 +1100,9 @@
     }
 
     async function refreshAuthUI(){
-      const { data } = await supabaseAuth.auth.getSession();
+      const { data, error } = await supabaseAuth.auth.getSession();
+      if(error) console.error("getSession error:", error);
+
       const session = data?.session;
 
       document.body.classList.toggle("logged-in", !!session);
@@ -1041,7 +1125,12 @@
       else loginWithGoogle();
     });
 
-    supabaseAuth.auth.onAuthStateChange(() => refreshAuthUI());
+    // Handle redirect completion (important)
+    supabaseAuth.auth.onAuthStateChange((event) => {
+      // events: INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED
+      refreshAuthUI();
+    });
+
     refreshAuthUI();
   </script>
 
