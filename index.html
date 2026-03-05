@@ -550,14 +550,13 @@
         <!-- 👑 only shows for creator -->
         <span id="creatorBadge" class="creatorBadge" style="display:none;">👑 Creator</span>
 
-        <span id="creatorBadge" class="creatorBadge" style="display:none;">👑 Creator</span>
+        <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
       </div>
     </div>
   </div>
 
   <script>
     const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
-    let CREATOR_MODE = false;
 
     /* Storage */
     const LS_KEY = "spenceai_chats_v1";
@@ -984,7 +983,7 @@
       const msg = input.value.trim();
       if(!msg && !attachedImage) return;
 
-      if(!CREATOR_MODE && msg && isGibberish(msg)){
+      if(msg && isGibberish(msg)){
         addBubble("you", msg);
         addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
         return;
@@ -1014,7 +1013,7 @@
       // hide preview as soon as AI starts typing
       hidePreviewUI();
 
-      if(!CREATOR_MODE && msg && isInsultOrThreat(msg)){
+      if(msg && isInsultOrThreat(msg)){
         const reply = "Why Julian";
         addBubble("ai", reply);
         c.messages.push({ role:"assistant", content: reply });
@@ -1068,10 +1067,10 @@
     }
 
     /* Button click: Send OR Stop */
-sendBtn.onclick = () => {
-  if (isTypingNow) requestCancelTyping();
-  else send();
-};
+    sendBtn.onclick = ()=>{
+      if(isTypingNow) requestCancelTyping();
+      else send();
+    };
 
     input.addEventListener("keydown", e=>{
       if(isTypingNow) return;
@@ -1093,47 +1092,6 @@ sendBtn.onclick = () => {
       "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
     );
 
-    const CREATOR_EMAIL = "etoo50155@gmail.com";
-let greetedCreator = false;
-
-function isCreator(user){
-  const email = (user?.email || "").toLowerCase();
-  return email === CREATOR_EMAIL.toLowerCase();
-}
-
-async function creatorCheck(){
-  const { data:{ session } } = await supabaseAuth.auth.getSession();
-  const user = session?.user;
-
-  const badge = document.getElementById("creatorBadge");
-
-  if(user && isCreator(user)){
-
-    CREATOR_MODE = true;
-
-    if(badge) badge.style.display = "inline-flex";
-
-    if(!greetedCreator){
-      greetedCreator = true;
-
-      addBubble("ai","Hello Mr. Doakes.");
-
-      const c = getActiveChat();
-      if(c){
-        c.messages.push({ role:"assistant", content:"Hello Mr. Doakes." });
-        persistAll();
-        renderChatList();
-      }
-    }
-
-  }else{
-
-    CREATOR_MODE = false;
-
-    if(badge) badge.style.display = "none";
-  }
-}
-    
     // 👑 Creator settings
     const CREATOR_EMAIL = "etoo50155@gmail.com";
     function isCreator(user){
