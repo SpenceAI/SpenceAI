@@ -362,8 +362,8 @@
 
     /* Attach button: SAME height as textarea row, thicker icon, narrow */
     .attachBtn{
-      width:40px;          /* narrow */
-      height:44px;         /* same as textarea min-height */
+      width:40px;
+      height:44px;
       padding:0;
       border-radius:14px;
       border:1px solid var(--border);
@@ -377,7 +377,7 @@
     }
     .attachBtn:hover{ background:rgba(20,29,46,.55); }
     .attachBtn svg{ width:18px; height:18px; display:block; }
-    .attachBtn svg path{ stroke-width:2.6; } /* “thicker” */
+    .attachBtn svg path{ stroke-width:2.6; }
 
     textarea:disabled{ opacity:.65; cursor:not-allowed; }
 
@@ -435,6 +435,21 @@
       flex:none;
     }
     .imgRemove:hover{ background:rgba(20,29,46,.55); }
+
+    /* 👑 Creator badge */
+    .creatorBadge{
+      border:1px solid var(--border);
+      background:rgba(20,29,46,.35);
+      color:var(--text);
+      border-radius:999px;
+      padding:8px 10px;
+      font-size:12px;
+      height:44px;
+      display:inline-flex;
+      align-items:center;
+      white-space:nowrap;
+      flex:none;
+    }
 
     /* Mobile */
     @media (max-width: 900px){
@@ -524,7 +539,6 @@
       <!-- input row -->
       <div class="inputRow">
         <button class="attachBtn" id="attachBtn" title="Attach image" type="button" aria-label="Attach image">
-          <!-- paperclip svg (same height as bar + thicker but narrow) -->
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M8 12.5l6.6-6.6a3.2 3.2 0 014.5 4.5L10.6 19a5 5 0 01-7.1-7.1l8.2-8.2"
                   stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
@@ -532,6 +546,10 @@
         </button>
 
         <textarea id="input" placeholder="Message SpenceAI…"></textarea>
+
+        <!-- 👑 only shows for creator -->
+        <span id="creatorBadge" class="creatorBadge" style="display:none;">👑 Creator</span>
+
         <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
       </div>
     </div>
@@ -977,7 +995,7 @@
         c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
       }
 
-      // show image IN CHAT (not “[Image]”)
+      // show image IN CHAT
       const userImageToShow = attachedImage || null;
       const userTextToShow = msg || "";
 
@@ -992,8 +1010,7 @@
       input.value = "";
       autoResize();
 
-      // if they sent a message with image, hide the preview as SOON as AI starts typing (your request)
-      // (keep attachedImage for the API call below)
+      // hide preview as soon as AI starts typing
       hidePreviewUI();
 
       if(msg && isInsultOrThreat(msg)){
@@ -1014,7 +1031,6 @@
       const waitingBubble = addBubble("ai", "", { isTyping:true });
 
       try{
-        // ONLY send {role,content} to the API (no imageUrl field in messages!)
         const apiMessages = c.messages
           .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
           .map(m => ({ role: m.role, content: m.content || "" }));
@@ -1070,24 +1086,29 @@
   </script>
 
   <script>
-    // LOGIN (more reliable on GitHub Pages)
+    // LOGIN (GitHub Pages)
     const supabaseAuth = window.supabase.createClient(
       "https://zfwjtvnxkylginwlxgto.supabase.co",
       "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
     );
 
+    // 👑 Creator settings
+    const CREATOR_EMAIL = "etoo50155@gmail.com";
+    function isCreator(user){
+      const email = (user?.email || "").toLowerCase();
+      return email === CREATOR_EMAIL.toLowerCase();
+    }
+
+    let greetedCreator = false;
+
     function githubPagesRedirect(){
-      // If your site is https://spenceai.github.io/SpenceAI/
-      // This MUST be whitelisted in Supabase Auth Redirect URLs.
       return "https://spenceai.github.io/SpenceAI/";
     }
 
     async function loginWithGoogle() {
       const { error } = await supabaseAuth.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: githubPagesRedirect()
-        }
+        options: { redirectTo: githubPagesRedirect() }
       });
       if(error){
         console.error("Login error:", error);
@@ -1119,19 +1140,44 @@
       }
     }
 
+    async function creatorCheck(){
+      const { data: { session } } = await supabaseAuth.auth.getSession();
+      const user = session?.user;
+
+      const badge = document.getElementById("creatorBadge");
+
+      if(user && isCreator(user)){
+        if(badge) badge.style.display = "inline-flex";
+
+        if(!greetedCreator){
+          greetedCreator = true;
+
+          // say hello in the chat
+          addBubble("ai", "Hello Mr. Doakes.");
+          const c = getActiveChat();
+          c.messages.push({ role:"assistant", content:"Hello Mr. Doakes." });
+          persistAll();
+          renderChatList();
+        }
+      } else {
+        if(badge) badge.style.display = "none";
+      }
+    }
+
     authBtn.addEventListener("click", async ()=>{
       const { data } = await supabaseAuth.auth.getSession();
       if(data?.session) logout();
       else loginWithGoogle();
     });
 
-    // Handle redirect completion (important)
-    supabaseAuth.auth.onAuthStateChange((event) => {
-      // events: INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED
+    supabaseAuth.auth.onAuthStateChange(() => {
       refreshAuthUI();
+      creatorCheck();
     });
 
+    // initial
     refreshAuthUI();
+    creatorCheck();
   </script>
 
 </body>
