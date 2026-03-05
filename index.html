@@ -1068,10 +1068,10 @@
     }
 
     /* Button click: Send OR Stop */
-    sendBtn.onclick = ()=>{
-      if(isTypingNow) requestCancelTyping();
-      else send();
-    };
+sendBtn.onclick = () => {
+  if (isTypingNow) requestCancelTyping();
+  else send();
+};
 
     input.addEventListener("keydown", e=>{
       if(isTypingNow) return;
