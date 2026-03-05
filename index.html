@@ -81,7 +81,6 @@
       right:14px;
       top:14px;
       z-index:80;
-
       width:46px;
       height:46px;
       border-radius:16px;
@@ -89,11 +88,9 @@
       background:rgba(20,29,46,.60);
       color:var(--text);
       cursor:pointer;
-
       display:flex;
       align-items:center;
       justify-content:center;
-
       box-shadow: 0 10px 30px rgba(0,0,0,.30);
     }
     .bookBtn:hover{ background:rgba(20,29,46,.78); }
@@ -215,11 +212,10 @@
     }
     .title{font-family:'Sora', sans-serif;font-weight:700;letter-spacing:-0.4px;font-size:18px;}
     .subtitle{font-size:12px;color:var(--muted);}
-
     .topbarLeft{display:flex;flex-direction:column;gap:2px;}
     .topbarRight{display:flex;align-items:center;gap:10px;}
 
-    /* Login button */
+    /* Login */
     .authBtn{
       border:1px solid var(--border);
       background:rgba(20,29,46,.35);
@@ -253,12 +249,11 @@
     .chat{
       height:100%;
       overflow-y:auto;
-      padding:22px 18px 190px;
+      padding:22px 18px 210px;
       max-width:980px;
       width:100%;
       margin:0 auto;
       min-height:0;
-
       scrollbar-width:none;
       -ms-overflow-style:none;
       overscroll-behavior:contain;
@@ -291,7 +286,6 @@
       border-bottom-left-radius:8px;
     }
 
-    /* images inside chat bubbles */
     .bubbleImg{
       display:block;
       width:min(360px, 70vw);
@@ -343,7 +337,6 @@
         "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
     }
 
-    /* Send button (Stop while typing) */
     .send{
       width:48px;
       height:48px;
@@ -360,7 +353,7 @@
       user-select:none;
     }
 
-    /* Attach button: SAME height as textarea row, thicker icon, narrow */
+    /* Attach button (kept as backup), same height as textarea */
     .attachBtn{
       width:40px;
       height:44px;
@@ -396,7 +389,7 @@
     }
     @keyframes blink{ 0%,50%{opacity:1;} 50.01%,100%{opacity:0;} }
 
-    /* Preview chip (ABOVE input) */
+    /* Preview chip ABOVE input */
     .imgChip{
       display:none;
       align-items:center;
@@ -436,7 +429,7 @@
     }
     .imgRemove:hover{ background:rgba(20,29,46,.55); }
 
-    /* 👑 Creator badge */
+    /* Creator badge */
     .creatorBadge{
       border:1px solid var(--border);
       background:rgba(20,29,46,.35);
@@ -471,7 +464,7 @@
       }
 
       .bubble{ max-width:88%; }
-      .chat{ padding-bottom: 230px; }
+      .chat{ padding-bottom: 250px; }
       .bookBtn{ top:12px; right:12px; }
       .send{ width:46px; height:46px; border-radius:14px; }
       .attachBtn{ height:44px; width:40px; }
@@ -529,14 +522,13 @@
     <div class="composerInner">
       <input id="imagePick" type="file" accept="image/*" hidden>
 
-      <!-- preview ABOVE the text row -->
+      <!-- Preview ABOVE input (for paste or attach) -->
       <div class="imgChip" id="imgChip">
         <img class="imgThumb" id="imgThumb" alt="preview">
         <div class="imgName" id="imgName"></div>
         <button class="imgRemove" id="imgRemove" type="button">✕</button>
       </div>
 
-      <!-- input row -->
       <div class="inputRow">
         <button class="attachBtn" id="attachBtn" title="Attach image" type="button" aria-label="Attach image">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -547,7 +539,6 @@
 
         <textarea id="input" placeholder="Message SpenceAI…"></textarea>
 
-        <!-- 👑 only shows for creator -->
         <span id="creatorBadge" class="creatorBadge" style="display:none;">👑 Creator</span>
 
         <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
@@ -561,6 +552,15 @@
     /* Storage */
     const LS_KEY = "spenceai_chats_v1";
     const LS_ACTIVE = "spenceai_active_chat_v1";
+
+    /* Draft + refresh safety */
+    const LS_DRAFT_TEXT = "spenceai_draft_text_v1";
+    const LS_DRAFT_IMAGE = "spenceai_draft_image_v1";
+    const LS_TYPING_ACTIVE = "spenceai_typing_active_v1"; // "1" or ""
+    const LS_LAST_SEND_AT = "spenceai_last_send_at_v1";
+
+    /* Limits */
+    const MAX_WORDS = 1000;
 
     /* DOM */
     const chatEl = document.getElementById("chat");
@@ -596,13 +596,14 @@
       if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
     }
 
-    /* Typing lock + Stop button */
+    /* Typing lock + stop */
     let isTypingNow = false;
     let cancelRequested = false;
 
     function setTypingLock(locked){
       isTypingNow = locked;
       input.disabled = locked;
+      localStorage.setItem(LS_TYPING_ACTIVE, locked ? "1" : "");
 
       if(locked){
         sendBtn.textContent = "■";
@@ -616,7 +617,7 @@
     }
     function requestCancelTyping(){ cancelRequested = true; }
 
-    /* Sidebar controls */
+    /* Sidebar */
     function openSidebar(){
       document.body.classList.add("sidebar-open");
       document.body.classList.remove("sidebar-closed");
@@ -648,6 +649,10 @@
 
     function systemText(){
       return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
+    }
+
+    function wordCount(s){
+      return (s || "").trim().split(/\s+/).filter(Boolean).length;
     }
 
     /* Insult/threat detection -> reply always 'Why Julian' */
@@ -701,7 +706,7 @@
       return score >= 3;
     }
 
-    /* Gibberish / symbol spam limit */
+    /* Gibberish / symbol spam */
     function isGibberish(text){
       const t = (text || "").trim();
       if(!t) return false;
@@ -754,7 +759,7 @@
     function getActiveChat(){ return chats.find(c=>c.id===activeChatId); }
     function persistAll(){ saveAllChats(chats); }
 
-    /* UI: supports image bubble */
+    /* UI bubbles (supports image) */
     function addBubble(role, text, opts={}){
       const { isTyping=false, imageUrl=null } = opts;
 
@@ -884,6 +889,12 @@
     }
     input.addEventListener("input", autoResize);
 
+    /* Draft saves (so refresh doesn't wipe prompt) */
+    function saveDraft(){
+      localStorage.setItem(LS_DRAFT_TEXT, input.value || "");
+    }
+    input.addEventListener("input", saveDraft);
+
     /* New chat */
     function newChat(){
       const c = {
@@ -913,28 +924,29 @@
     let attachedImage = null;
     let attachedFileName = "";
 
+    function showPreviewUI(dataUrl, name){
+      attachedImage = dataUrl;
+      attachedFileName = name || "pasted-image.png";
+      imgThumb.src = attachedImage;
+      imgName.textContent = attachedFileName;
+      imgChip.style.display = "flex";
+      localStorage.setItem(LS_DRAFT_IMAGE, attachedImage);
+    }
+
     function hidePreviewUI(){
       imgChip.style.display = "none";
       imgThumb.src = "";
       imgName.textContent = "";
+      localStorage.removeItem(LS_DRAFT_IMAGE);
     }
 
-    /* Image attach + preview */
+    /* Attach click (backup) */
     attachBtn.onclick = () => imagePick.click();
-
     imagePick.onchange = e => {
       const file = e.target.files[0];
       if(!file) return;
-
       const reader = new FileReader();
-      reader.onload = () => {
-        attachedImage = reader.result;
-        attachedFileName = file.name || "image";
-
-        imgThumb.src = attachedImage;
-        imgName.textContent = attachedFileName;
-        imgChip.style.display = "flex";
-      };
+      reader.onload = () => showPreviewUI(reader.result, file.name || "image");
       reader.readAsDataURL(file);
     };
 
@@ -944,6 +956,26 @@
       imagePick.value = "";
       hidePreviewUI();
     };
+
+    /* ✅ Paste images (main way) */
+    input.addEventListener("paste", (e) => {
+      const items = e.clipboardData?.items;
+      if(!items) return;
+
+      for(const it of items){
+        if(it.type && it.type.startsWith("image/")){
+          const blob = it.getAsFile();
+          if(!blob) continue;
+
+          e.preventDefault();
+
+          const reader = new FileReader();
+          reader.onload = () => showPreviewUI(reader.result, "pasted-image.png");
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+    });
 
     /* Linear typing */
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -970,19 +1002,27 @@
         if(cancelRequested && isSentenceEnd(ch, nextCh)){
           break;
         }
-
         await sleep(speed + Math.random()*8);
       }
       cursor.remove();
     }
 
-    /* Send */
+        /* Send */
     async function send(){
       if(isTypingNow) return;
 
-      const msg = input.value.trim();
+      const msgRaw = input.value || "";
+      const msg = msgRaw.trim();
+
       if(!msg && !attachedImage) return;
 
+      // 1000 word limit
+      if(msg && wordCount(msg) > MAX_WORDS){
+        addBubble("ai", `Too long 😅 Keep it under ${MAX_WORDS} words.`);
+        return;
+      }
+
+      // symbol / gibberish
       if(msg && isGibberish(msg)){
         addBubble("you", msg);
         addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
@@ -995,22 +1035,27 @@
         c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
       }
 
-      // show image IN CHAT
+      // show image IN CHAT (not as :image)
       const userImageToShow = attachedImage || null;
       const userTextToShow = msg || "";
 
       addBubble("you", userTextToShow, { imageUrl: userImageToShow });
+
       c.messages.push({
         role: "user",
         content: userTextToShow,
         imageUrl: userImageToShow || undefined
       });
 
-      // clear input immediately
+      persistAll();
+      renderChatList();
+
+      // clear prompt draft immediately so refresh won't lose it
       input.value = "";
       autoResize();
+      localStorage.removeItem(LS_DRAFT_TEXT);
 
-      // hide preview as soon as AI starts typing
+      // hide preview as soon as AI begins
       hidePreviewUI();
 
       if(msg && isInsultOrThreat(msg)){
@@ -1019,21 +1064,27 @@
         c.messages.push({ role:"assistant", content: reply });
         persistAll();
         renderChatList();
+
         attachedImage = null;
         attachedFileName = "";
         imagePick.value = "";
+        hidePreviewUI();
         return;
       }
 
       setTypingLock(true);
       pinnedToBottom = isNearBottom(chatEl);
 
+      // placeholder bubble
       const waitingBubble = addBubble("ai", "", { isTyping:true });
 
       try{
+        // send only {role, content} to API
         const apiMessages = c.messages
           .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
           .map(m => ({ role: m.role, content: m.content || "" }));
+
+        localStorage.setItem(LS_LAST_SEND_AT, String(Date.now()));
 
         const res = await fetch(WORKER_URL, {
           method:"POST",
@@ -1047,18 +1098,17 @@
         const data = await res.json();
         const reply = data.reply || "(no reply)";
 
+        // ✅ KEY FIX: save reply instantly BEFORE animation
+        c.messages.push({ role:"assistant", content: reply });
+        persistAll();
+
         waitingBubble.innerHTML = "";
         await typewriter(waitingBubble, reply, 10);
-
-        c.messages.push({ role:"assistant", content: waitingBubble.textContent || reply });
-        persistAll();
-        renderChatList();
       }catch(e){
         waitingBubble.textContent = "Server error.";
       }finally{
         setTypingLock(false);
 
-        // reset attachment AFTER request
         attachedImage = null;
         attachedFileName = "";
         imagePick.value = "";
@@ -1083,6 +1133,26 @@
     /* Boot */
     renderChatList();
     renderChatMessages();
+
+    // restore draft prompt after refresh
+    const savedDraft = localStorage.getItem(LS_DRAFT_TEXT) || "";
+    if(savedDraft){
+      input.value = savedDraft;
+      autoResize();
+    }
+
+    // restore draft image preview after refresh
+    const savedDraftImg = localStorage.getItem(LS_DRAFT_IMAGE);
+    if(savedDraftImg){
+      showPreviewUI(savedDraftImg, "draft-image.png");
+    }
+
+    // if refresh happened mid-typing, don't lose anything
+    // (messages already saved, just unlock UI)
+    if(localStorage.getItem(LS_TYPING_ACTIVE) === "1"){
+      localStorage.setItem(LS_TYPING_ACTIVE, "");
+      setTypingLock(false);
+    }
   </script>
 
   <script>
@@ -1151,8 +1221,6 @@
 
         if(!greetedCreator){
           greetedCreator = true;
-
-          // say hello in the chat
           addBubble("ai", "Hello Mr. Doakes.");
           const c = getActiveChat();
           c.messages.push({ role:"assistant", content:"Hello Mr. Doakes." });
@@ -1175,7 +1243,6 @@
       creatorCheck();
     });
 
-    // initial
     refreshAuthUI();
     creatorCheck();
   </script>
