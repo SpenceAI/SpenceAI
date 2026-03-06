@@ -40,7 +40,6 @@
       overflow:hidden;
     }
 
-    /* Desktop layout */
     .app{
       height:100%;
       display:grid;
@@ -49,7 +48,6 @@
     }
     body.sidebar-closed .app{ grid-template-columns: 0 1fr; }
 
-    /* Sidebar */
     .sidebar{
       border-right:1px solid var(--border);
       background:rgba(11,15,22,.55);
@@ -64,7 +62,6 @@
     }
     body.sidebar-closed .sidebar{ transform: translateX(-100%); }
 
-    /* Overlay */
     .overlay{
       position:fixed;
       inset:0;
@@ -75,7 +72,6 @@
       z-index:40;
     }
 
-    /* Book button */
     .bookBtn{
       position:fixed;
       right:14px;
@@ -95,7 +91,6 @@
     }
     .bookBtn:hover{ background:rgba(20,29,46,.78); }
 
-    /* Sidebar content */
     .brand{
       display:flex;align-items:center;gap:10px;
       padding:10px 12px;
@@ -190,7 +185,6 @@
     }
     .iconBtn:hover{ background:rgba(20,29,46,.55); }
 
-    /* Main */
     .main{
       height:100%;
       display:flex;
@@ -198,7 +192,6 @@
       min-height:0;
     }
 
-    /* Topbar */
     .topbar{
       padding:14px 18px;
       border-bottom:1px solid var(--border);
@@ -215,7 +208,6 @@
     .topbarLeft{display:flex;flex-direction:column;gap:2px;}
     .topbarRight{display:flex;align-items:center;gap:10px;}
 
-    /* Login */
     .authBtn{
       border:1px solid var(--border);
       background:rgba(20,29,46,.35);
@@ -239,7 +231,6 @@
       text-overflow:ellipsis;
     }
 
-    /* Chat */
     .chatWrap{
       flex:1;
       overflow:hidden;
@@ -295,7 +286,6 @@
       margin:0 0 10px 0;
     }
 
-    /* Composer */
     .composer{
       position:fixed;
       left:0; right:0;
@@ -353,7 +343,6 @@
       user-select:none;
     }
 
-    /* Attach button (kept as backup), same height as textarea */
     .attachBtn{
       width:40px;
       height:44px;
@@ -374,7 +363,6 @@
 
     textarea:disabled{ opacity:.65; cursor:not-allowed; }
 
-    /* Typing dots */
     .dots{display:inline-flex;gap:5px;align-items:center;height:16px;}
     .dot{width:6px;height:6px;border-radius:50%;background:rgba(232,238,252,.8);opacity:.35;animation:b 1s infinite ease-in-out;}
     .dot:nth-child(2){animation-delay:.15s;}
@@ -389,7 +377,6 @@
     }
     @keyframes blink{ 0%,50%{opacity:1;} 50.01%,100%{opacity:0;} }
 
-    /* Preview chip ABOVE input */
     .imgChip{
       display:none;
       align-items:center;
@@ -429,7 +416,6 @@
     }
     .imgRemove:hover{ background:rgba(20,29,46,.55); }
 
-    /* Creator badge */
     .creatorBadge{
       border:1px solid var(--border);
       background:rgba(20,29,46,.35);
@@ -444,7 +430,6 @@
       flex:none;
     }
 
-    /* Mobile */
     @media (max-width: 900px){
       .main{ height:100dvh; }
       .app{ display:block; height:100dvh; }
@@ -464,13 +449,12 @@
       }
 
       .bubble{ max-width:88%; }
-      .chat{ padding-bottom: 250px; }
+      .chat{ padding-bottom:250px; }
       .bookBtn{ top:12px; right:12px; }
       .send{ width:46px; height:46px; border-radius:14px; }
       .attachBtn{ height:44px; width:40px; }
     }
 
-    /* Logged out: hide chat storage UI */
     body.logged-out .sidebar .sbtn,
     body.logged-out .sidebar .sectionTitle,
     body.logged-out .sidebar .chatList{
@@ -522,7 +506,6 @@
     <div class="composerInner">
       <input id="imagePick" type="file" accept="image/*" hidden>
 
-      <!-- Preview ABOVE input (for paste or attach) -->
       <div class="imgChip" id="imgChip">
         <img class="imgThumb" id="imgThumb" alt="preview">
         <div class="imgName" id="imgName"></div>
@@ -549,20 +532,15 @@
   <script>
     const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-    /* Storage */
     const LS_KEY = "spenceai_chats_v1";
     const LS_ACTIVE = "spenceai_active_chat_v1";
-
-    /* Draft + refresh safety */
     const LS_DRAFT_TEXT = "spenceai_draft_text_v1";
     const LS_DRAFT_IMAGE = "spenceai_draft_image_v1";
-    const LS_TYPING_ACTIVE = "spenceai_typing_active_v1"; // "1" or ""
+    const LS_TYPING_ACTIVE = "spenceai_typing_active_v1";
     const LS_LAST_SEND_AT = "spenceai_last_send_at_v1";
 
-    /* Limits */
     const MAX_WORDS = 1000;
 
-    /* DOM */
     const chatEl = document.getElementById("chat");
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("sendBtn");
@@ -584,7 +562,6 @@
     const authPill = document.getElementById("authPill");
     const brandSub = document.getElementById("brandSub");
 
-    /* Smart scroll */
     let pinnedToBottom = true;
     function isNearBottom(el, threshold = 80){
       return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
@@ -596,14 +573,16 @@
       if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
     }
 
-    /* Typing lock + stop */
     let isTypingNow = false;
     let cancelRequested = false;
 
     function setTypingLock(locked){
       isTypingNow = locked;
       input.disabled = locked;
-      localStorage.setItem(LS_TYPING_ACTIVE, locked ? "1" : "");
+
+      if(signedIn){
+        localStorage.setItem(LS_TYPING_ACTIVE, locked ? "1" : "");
+      }
 
       if(locked){
         sendBtn.textContent = "■";
@@ -617,7 +596,6 @@
     }
     function requestCancelTyping(){ cancelRequested = true; }
 
-    /* Sidebar */
     function openSidebar(){
       document.body.classList.add("sidebar-open");
       document.body.classList.remove("sidebar-closed");
@@ -633,19 +611,8 @@
     bookBtn.addEventListener("click", toggleSidebar);
     overlay.addEventListener("click", closeSidebar);
 
-    /* Helpers */
     const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
     function nowTitle(){ return "New chat • " + new Date().toLocaleString(); }
-
-    function loadAllChats(){
-      try{
-        const raw = localStorage.getItem(LS_KEY);
-        return raw ? JSON.parse(raw) : [];
-      }catch{ return []; }
-    }
-    function saveAllChats(chats){ localStorage.setItem(LS_KEY, JSON.stringify(chats)); }
-    function setActiveChatId(id){ localStorage.setItem(LS_ACTIVE, id); }
-    function getActiveChatId(){ return localStorage.getItem(LS_ACTIVE); }
 
     function systemText(){
       return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
@@ -655,7 +622,6 @@
       return (s || "").trim().split(/\s+/).filter(Boolean).length;
     }
 
-    /* Insult/threat detection -> reply always 'Why Julian' */
     function isInsultOrThreat(text){
       const norm = (text || "")
         .toLowerCase()
@@ -706,7 +672,6 @@
       return score >= 3;
     }
 
-    /* Gibberish / symbol spam */
     function isGibberish(text){
       const t = (text || "").trim();
       if(!t) return false;
@@ -734,32 +699,118 @@
       return false;
     }
 
-    /* Chats */
-    let chats = loadAllChats();
-    let activeChatId = getActiveChatId();
+    let signedIn = false;
+    let chats = [];
+    let activeChatId = null;
 
-    if(!chats.length){
-      const first = {
+    function makeFreshChat(){
+      return {
         id: uid(),
         title: nowTitle(),
         createdAt: Date.now(),
         messages: [{ role:"system", content: systemText() }]
       };
-      chats.unshift(first);
-      saveAllChats(chats);
-      activeChatId = first.id;
-      setActiveChatId(activeChatId);
     }
 
-    if(!activeChatId || !chats.find(c=>c.id===activeChatId)){
+    function clearGuestStorage(){
+      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_ACTIVE);
+      localStorage.removeItem(LS_DRAFT_TEXT);
+      localStorage.removeItem(LS_DRAFT_IMAGE);
+      localStorage.removeItem(LS_TYPING_ACTIVE);
+      localStorage.removeItem(LS_LAST_SEND_AT);
+    }
+
+    function loadPersistentChats(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        return raw ? JSON.parse(raw) : [];
+      }catch{
+        return [];
+      }
+    }
+
+    function savePersistentChats(nextChats){
+      localStorage.setItem(LS_KEY, JSON.stringify(nextChats));
+    }
+
+    function setPersistentActiveChatId(id){
+      localStorage.setItem(LS_ACTIVE, id);
+    }
+
+    function getPersistentActiveChatId(){
+      return localStorage.getItem(LS_ACTIVE);
+    }
+
+    function saveDraft(){
+      if(!signedIn) return;
+      localStorage.setItem(LS_DRAFT_TEXT, input.value || "");
+    }
+
+    function saveDraftImage(dataUrl){
+      if(!signedIn) return;
+      localStorage.setItem(LS_DRAFT_IMAGE, dataUrl);
+    }
+
+    function clearDraftImage(){
+      if(!signedIn) return;
+      localStorage.removeItem(LS_DRAFT_IMAGE);
+    }
+
+    function resetTemporaryLoggedOutChat(){
+      chats = [makeFreshChat()];
       activeChatId = chats[0].id;
-      setActiveChatId(activeChatId);
     }
 
-    function getActiveChat(){ return chats.find(c=>c.id===activeChatId); }
-    function persistAll(){ saveAllChats(chats); }
+    function ensurePersistentChatsReady(){
+      chats = loadPersistentChats();
 
-    /* UI bubbles (supports image) */
+      if(!chats.length){
+        const first = makeFreshChat();
+        chats.unshift(first);
+        savePersistentChats(chats);
+      }
+
+      activeChatId = getPersistentActiveChatId();
+
+      if(!activeChatId || !chats.find(c => c.id === activeChatId)){
+        activeChatId = chats[0].id;
+        setPersistentActiveChatId(activeChatId);
+      }
+    }
+
+    function applyStorageMode(isLoggedIn){
+      signedIn = !!isLoggedIn;
+
+      if(signedIn){
+        ensurePersistentChatsReady();
+      } else {
+        clearGuestStorage();
+        resetTemporaryLoggedOutChat();
+        input.value = "";
+        autoResize();
+        attachedImage = null;
+        attachedFileName = "";
+        imagePick.value = "";
+        hidePreviewUI();
+      }
+
+      renderChatList();
+      renderChatMessages();
+    }
+
+    clearGuestStorage();
+    resetTemporaryLoggedOutChat();
+
+    function getActiveChat(){
+      return chats.find(c => c.id === activeChatId) || chats[0];
+    }
+
+    function persistAll(){
+      if(!signedIn) return;
+      savePersistentChats(chats);
+    }
+
     function addBubble(role, text, opts={}){
       const { isTyping=false, imageUrl=null } = opts;
 
@@ -841,7 +892,7 @@
           const name = prompt("Rename chat:", c.title || "");
           if(name && name.trim()){
             c.title = name.trim();
-            saveAllChats(chats);
+            persistAll();
             renderChatList();
           }
         };
@@ -852,14 +903,14 @@
           chats = chats.filter(x=>x.id!==c.id);
 
           if(!chats.length){
-            const n = { id: uid(), title: nowTitle(), createdAt: Date.now(), messages:[{role:"system", content: systemText()}] };
+            const n = makeFreshChat();
             chats.unshift(n);
           }
           if(activeChatId === c.id){
             activeChatId = chats[0].id;
-            setActiveChatId(activeChatId);
+            if(signedIn) setPersistentActiveChatId(activeChatId);
           }
-          saveAllChats(chats);
+          persistAll();
           renderChatList();
           renderChatMessages();
         };
@@ -872,7 +923,7 @@
 
         item.onclick = ()=>{
           activeChatId = c.id;
-          setActiveChatId(activeChatId);
+          if(signedIn) setPersistentActiveChatId(activeChatId);
           renderChatList();
           renderChatMessages();
           if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
@@ -882,30 +933,18 @@
       }
     }
 
-    /* Input UX */
     function autoResize(){
       input.style.height = "auto";
       input.style.height = input.scrollHeight + "px";
     }
     input.addEventListener("input", autoResize);
-
-    /* Draft saves (so refresh doesn't wipe prompt) */
-    function saveDraft(){
-      localStorage.setItem(LS_DRAFT_TEXT, input.value || "");
-    }
     input.addEventListener("input", saveDraft);
 
-    /* New chat */
     function newChat(){
-      const c = {
-        id: uid(),
-        title: nowTitle(),
-        createdAt: Date.now(),
-        messages: [{ role:"system", content: systemText() }]
-      };
+      const c = makeFreshChat();
       chats.unshift(c);
       activeChatId = c.id;
-      setActiveChatId(activeChatId);
+      if(signedIn) setPersistentActiveChatId(activeChatId);
       persistAll();
       renderChatList();
       renderChatMessages();
@@ -920,7 +959,6 @@
       }
     });
 
-    /* Image attach state */
     let attachedImage = null;
     let attachedFileName = "";
 
@@ -930,17 +968,16 @@
       imgThumb.src = attachedImage;
       imgName.textContent = attachedFileName;
       imgChip.style.display = "flex";
-      localStorage.setItem(LS_DRAFT_IMAGE, attachedImage);
+      saveDraftImage(attachedImage);
     }
 
     function hidePreviewUI(){
       imgChip.style.display = "none";
       imgThumb.src = "";
       imgName.textContent = "";
-      localStorage.removeItem(LS_DRAFT_IMAGE);
+      clearDraftImage();
     }
 
-    /* Attach click (backup) */
     attachBtn.onclick = () => imagePick.click();
     imagePick.onchange = e => {
       const file = e.target.files[0];
@@ -957,7 +994,6 @@
       hidePreviewUI();
     };
 
-    /* ✅ Paste images (main way) */
     input.addEventListener("paste", (e) => {
       const items = e.clipboardData?.items;
       if(!items) return;
@@ -977,7 +1013,6 @@
       }
     });
 
-    /* Linear typing */
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     function isSentenceEnd(ch, nextCh){
       const end = /[.!?]/.test(ch);
@@ -1007,8 +1042,7 @@
       cursor.remove();
     }
 
-        /* Send */
-    async function send(){
+        async function send(){
       if(isTypingNow) return;
 
       const msgRaw = input.value || "";
@@ -1016,13 +1050,11 @@
 
       if(!msg && !attachedImage) return;
 
-      // 1000 word limit
       if(msg && wordCount(msg) > MAX_WORDS){
         addBubble("ai", `Too long 😅 Keep it under ${MAX_WORDS} words.`);
         return;
       }
 
-      // symbol / gibberish
       if(msg && isGibberish(msg)){
         addBubble("you", msg);
         addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
@@ -1035,7 +1067,6 @@
         c.title = msg.length > 24 ? msg.slice(0,24) + "…" : msg;
       }
 
-      // show image IN CHAT (not as :image)
       const userImageToShow = attachedImage || null;
       const userTextToShow = msg || "";
 
@@ -1050,12 +1081,10 @@
       persistAll();
       renderChatList();
 
-      // clear prompt draft immediately so refresh won't lose it
       input.value = "";
       autoResize();
-      localStorage.removeItem(LS_DRAFT_TEXT);
+      if(signedIn) localStorage.removeItem(LS_DRAFT_TEXT);
 
-      // hide preview as soon as AI begins
       hidePreviewUI();
 
       if(msg && isInsultOrThreat(msg)){
@@ -1075,30 +1104,31 @@
       setTypingLock(true);
       pinnedToBottom = isNearBottom(chatEl);
 
-      // placeholder bubble
       const waitingBubble = addBubble("ai", "", { isTyping:true });
 
       try{
-        // send only {role, content} to API
         const apiMessages = c.messages
           .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
           .map(m => ({ role: m.role, content: m.content || "" }));
 
-        localStorage.setItem(LS_LAST_SEND_AT, String(Date.now()));
+        if(signedIn){
+          localStorage.setItem(LS_LAST_SEND_AT, String(Date.now()));
+        }
+
+        const imageToSend = attachedImage || null;
 
         const res = await fetch(WORKER_URL, {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
           body: JSON.stringify({
             messages: apiMessages,
-            imageUrl: attachedImage || null
+            imageUrl: imageToSend
           })
         });
 
         const data = await res.json();
         const reply = data.reply || "(no reply)";
 
-        // ✅ KEY FIX: save reply instantly BEFORE animation
         c.messages.push({ role:"assistant", content: reply });
         persistAll();
 
@@ -1116,7 +1146,6 @@
       }
     }
 
-    /* Button click: Send OR Stop */
     sendBtn.onclick = ()=>{
       if(isTypingNow) requestCancelTyping();
       else send();
@@ -1130,39 +1159,16 @@
       }
     });
 
-    /* Boot */
     renderChatList();
     renderChatMessages();
-
-    // restore draft prompt after refresh
-    const savedDraft = localStorage.getItem(LS_DRAFT_TEXT) || "";
-    if(savedDraft){
-      input.value = savedDraft;
-      autoResize();
-    }
-
-    // restore draft image preview after refresh
-    const savedDraftImg = localStorage.getItem(LS_DRAFT_IMAGE);
-    if(savedDraftImg){
-      showPreviewUI(savedDraftImg, "draft-image.png");
-    }
-
-    // if refresh happened mid-typing, don't lose anything
-    // (messages already saved, just unlock UI)
-    if(localStorage.getItem(LS_TYPING_ACTIVE) === "1"){
-      localStorage.setItem(LS_TYPING_ACTIVE, "");
-      setTypingLock(false);
-    }
   </script>
 
   <script>
-    // LOGIN (GitHub Pages)
     const supabaseAuth = window.supabase.createClient(
       "https://zfwjtvnxkylginwlxgto.supabase.co",
       "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
     );
 
-    // 👑 Creator settings
     const CREATOR_EMAIL = "etoo50155@gmail.com";
     function isCreator(user){
       const email = (user?.email || "").toLowerCase();
@@ -1208,6 +1214,42 @@
         authBtn.textContent = "Log in";
         if(brandSub) brandSub.textContent = "Log in to view chats";
       }
+
+      applyStorageMode(!!session);
+
+      if(session && signedIn){
+        const savedDraft = localStorage.getItem(LS_DRAFT_TEXT) || "";
+        if(savedDraft){
+          input.value = savedDraft;
+          autoResize();
+        } else {
+          input.value = "";
+          autoResize();
+        }
+
+        const savedDraftImg = localStorage.getItem(LS_DRAFT_IMAGE);
+        if(savedDraftImg){
+          showPreviewUI(savedDraftImg, "draft-image.png");
+        } else {
+          attachedImage = null;
+          attachedFileName = "";
+          imagePick.value = "";
+          hidePreviewUI();
+        }
+
+        if(localStorage.getItem(LS_TYPING_ACTIVE) === "1"){
+          localStorage.setItem(LS_TYPING_ACTIVE, "");
+          setTypingLock(false);
+        }
+      } else {
+        input.value = "";
+        autoResize();
+        attachedImage = null;
+        attachedFileName = "";
+        imagePick.value = "";
+        hidePreviewUI();
+        setTypingLock(false);
+      }
     }
 
     async function creatorCheck(){
@@ -1238,13 +1280,15 @@
       else loginWithGoogle();
     });
 
-    supabaseAuth.auth.onAuthStateChange(() => {
-      refreshAuthUI();
-      creatorCheck();
+    supabaseAuth.auth.onAuthStateChange(async () => {
+      await refreshAuthUI();
+      await creatorCheck();
     });
 
-    refreshAuthUI();
-    creatorCheck();
+    (async () => {
+      await refreshAuthUI();
+      await creatorCheck();
+    })();
   </script>
 
 </body>
