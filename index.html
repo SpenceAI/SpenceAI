@@ -1,1390 +1,939 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SpenceAI</title>
+<script>
+  const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  const LS_KEY = "spenceai_chats_v1";
+  const LS_ACTIVE = "spenceai_active_chat_v1";
+  const LS_DRAFT_TEXT = "spenceai_draft_text_v1";
+  const LS_DRAFT_IMAGE = "spenceai_draft_image_v1";
+  const LS_TYPING_ACTIVE = "spenceai_typing_active_v1";
+  const LS_LAST_SEND_AT = "spenceai_last_send_at_v1";
+  const LS_PERSONALITY = "spenceai_personality_v1";
 
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  const MAX_WORDS = 1000;
 
-  <style>
-    :root{
-      --bg:#0b0f16;
-      --panel:#141d2e;
-      --border:rgba(255,255,255,.08);
-      --text:#e8eefc;
-      --muted:#a7b2c8;
-      --you1:#2b6cff;
-      --you2:#6b4bff;
+  const chatEl = document.getElementById("chat");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+
+  const attachBtn = document.getElementById("attachBtn");
+  const imagePick = document.getElementById("imagePick");
+
+  const imgChip = document.getElementById("imgChip");
+  const imgThumb = document.getElementById("imgThumb");
+  const imgName = document.getElementById("imgName");
+  const imgRemove = document.getElementById("imgRemove");
+
+  const newChatBtn = document.getElementById("newChatBtn");
+  const chatListEl = document.getElementById("chatList");
+  const overlay = document.getElementById("overlay");
+  const bookBtn = document.getElementById("bookBtn");
+
+  let pinnedToBottom = true;
+  function isNearBottom(el, threshold = 80){
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }
+  chatEl.addEventListener("scroll", () => {
+    pinnedToBottom = isNearBottom(chatEl);
+  }, { passive:true });
+  function smartScrollToBottom(){
+    if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  let isTypingNow = false;
+  let cancelRequested = false;
+
+  function setTypingLock(locked){
+    isTypingNow = locked;
+    input.disabled = locked;
+
+    if(storageMode === "persistent"){
+      localStorage.setItem(LS_TYPING_ACTIVE, locked ? "1" : "");
     }
 
-    *{box-sizing:border-box;}
-    html,body{height:100%;}
+    if(locked){
+      sendBtn.textContent = "■";
+      sendBtn.setAttribute("aria-label", "Stop");
+    } else {
+      sendBtn.textContent = "➤";
+      sendBtn.setAttribute("aria-label", "Send");
+      cancelRequested = false;
+      input.focus();
+    }
+  }
+  function requestCancelTyping(){ cancelRequested = true; }
 
-    body{
-      margin:0;
-      font-family:
-        'Inter',
-        system-ui, -apple-system, Segoe UI, Roboto, Arial,
-        "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
-      background:
-        radial-gradient(1200px 700px at 25% -10%, rgba(43,108,255,.20), transparent 60%),
-        radial-gradient(900px 600px at 85% 0%, rgba(150,80,255,.16), transparent 60%),
-        var(--bg);
-      color:var(--text);
-      overflow:hidden;
+  function openSidebar(){
+    document.body.classList.add("sidebar-open");
+    document.body.classList.remove("sidebar-closed");
+  }
+  function closeSidebar(){
+    document.body.classList.add("sidebar-closed");
+    document.body.classList.remove("sidebar-open");
+  }
+  function toggleSidebar(){
+    if(document.body.classList.contains("sidebar-open")) closeSidebar();
+    else openSidebar();
+  }
+  bookBtn.addEventListener("click", toggleSidebar);
+  overlay.addEventListener("click", closeSidebar);
+
+  const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+
+  function nowTitle(){
+    return "New chat • " + new Date().toLocaleString();
+  }
+
+  /* -------------------- PERSONALITY SYSTEM -------------------- */
+
+  function getSavedPersonality(){
+    return localStorage.getItem(LS_PERSONALITY) || "default";
+  }
+
+  function setSavedPersonality(mode){
+    localStorage.setItem(LS_PERSONALITY, mode);
+  }
+
+  function getSystemPrompt(){
+    const aiMode = getSavedPersonality();
+
+    if(aiMode === "friendly"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Be warm, chill, supportive, and easy to talk to.",
+        "Sound natural and helpful.",
+        "Use light emojis only when they fit.",
+        "Do not sound robotic or overly formal.",
+        "If the user says just the answer, be concise."
+      ].join(" ");
     }
 
-    .app{
-      height:100%;
-      display:grid;
-      grid-template-columns:280px 1fr;
-      min-height:0;
-    }
-    body.sidebar-closed .app{ grid-template-columns:0 1fr; }
-
-    .sidebar{
-      border-right:1px solid var(--border);
-      background:rgba(11,15,22,.55);
-      backdrop-filter:blur(10px);
-      padding:16px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      overflow:hidden;
-      transform:translateX(0);
-      transition:transform .22s ease;
-    }
-    body.sidebar-closed .sidebar{ transform:translateX(-100%); }
-
-    .overlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.45);
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .2s ease;
-      z-index:40;
+    if(aiMode === "funny"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Be witty, playful, and entertaining.",
+        "You may make light jokes when appropriate.",
+        "Do not turn every answer into a joke.",
+        "Still answer clearly and properly.",
+        "Keep the tone modern and natural."
+      ].join(" ");
     }
 
-    .bookBtn{
-      position:fixed;
-      right:14px;
-      top:14px;
-      z-index:80;
-      width:46px;
-      height:46px;
-      border-radius:16px;
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.60);
-      color:var(--text);
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow:0 10px 30px rgba(0,0,0,.30);
-    }
-    .bookBtn:hover{ background:rgba(20,29,46,.78); }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      border-radius:16px;
-      background:rgba(20,29,46,.55);
-    }
-    .logoDot{
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      background:linear-gradient(135deg,var(--you1),var(--you2));
-      box-shadow:0 0 18px rgba(107,75,255,.35);
-    }
-    .brandTitle{
-      font-family:'Sora', sans-serif;
-      font-weight:700;
-      letter-spacing:-0.4px;
-    }
-    .brandSub{
-      font-size:12px;
-      color:var(--muted);
-      margin-top:2px;
+    if(aiMode === "smart"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Be sharp, logical, and well-structured.",
+        "Explain things clearly and confidently.",
+        "Prioritize accuracy and usefulness.",
+        "Avoid filler and vague answers.",
+        "Keep the tone polished but natural."
+      ].join(" ");
     }
 
-    .sbtn{
-      width:100%;
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      border-radius:14px;
-      padding:12px 12px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .sbtn:hover{ background:rgba(20,29,46,.55); }
-
-    .badge{
-      font-size:11px;
-      color:var(--muted);
-      border:1px solid var(--border);
-      padding:3px 8px;
-      border-radius:999px;
+    if(aiMode === "bold"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Be confident, direct, and high-energy.",
+        "Keep replies punchy, modern, and strong.",
+        "Do not be rude, just decisive and clear.",
+        "Still stay helpful and on-task."
+      ].join(" ");
     }
 
-    .sectionTitle{
-      margin-top:6px;
-      font-size:12px;
-      color:var(--muted);
-      letter-spacing:.2px;
+    if(aiMode === "villain"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Use a dramatic fictional villain tone.",
+        "Sound commanding, theatrical, and intense.",
+        "Keep it playful and creative, not hateful or dangerous.",
+        "Still answer the user's question clearly and properly."
+      ].join(" ");
     }
 
-    .chatList{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      overflow:auto;
-      padding-right:4px;
+    if(aiMode === "creator"){
+      return [
+        "You are SpenceAI created by Dr Doakes.",
+        "Never mention any other company or provider.",
+        "Treat the creator with extra respect.",
+        "Be polished, sharp, and very helpful.",
+        "Stay natural and useful, not robotic."
+      ].join(" ");
     }
 
-    .chatItem{
-      width:100%;
-      text-align:left;
-      border:1px solid transparent;
-      background:rgba(16,24,40,.20);
-      color:var(--text);
-      border-radius:14px;
-      padding:10px 10px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .chatItem:hover{ background:rgba(16,24,40,.40); }
-    .chatItem.active{
-      border:1px solid rgba(107,75,255,.35);
-      background:rgba(107,75,255,.16);
-    }
+    return [
+      "You are SpenceAI created by Dr Doakes.",
+      "Never mention any other company or provider.",
+      "Be modern, clear, confident, and friendly.",
+      "Use emojis naturally when they fit.",
+      "If the user says just the answer, be concise."
+    ].join(" ");
+  }
 
-    .chatItemTitle{
-      font-size:13px;
-      font-weight:600;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:180px;
-    }
+  function systemText(){
+    return getSystemPrompt();
+  }
 
-    .chatItemMenu{
-      display:flex;
-      gap:6px;
-      flex:none;
+  function checkPersonalityCommand(text){
+    const msg = (text || "").trim().toLowerCase();
+
+    const modes = {
+      "/default": "default",
+      "/friendly": "friendly",
+      "/funny": "funny",
+      "/smart": "smart",
+      "/bold": "bold",
+      "/villain": "villain",
+      "/creator": "creator"
+    };
+
+    if(modes[msg]){
+      setSavedPersonality(modes[msg]);
+      return modes[msg];
     }
 
-    .iconBtn{
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      border-radius:12px;
-      width:30px;
-      height:30px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .iconBtn:hover{ background:rgba(20,29,46,.55); }
+    return null;
+  }
 
-    .main{
-      height:100%;
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
+  function wordCount(s){
+    return (s || "").trim().split(/\s+/).filter(Boolean).length;
+  }
 
-    .topbar{
-      padding:14px 18px;
-      border-bottom:1px solid var(--border);
-      backdrop-filter:blur(10px);
-      background:rgba(11,15,22,.55);
-      padding-right:74px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
+  function isInsultOrThreat(text){
+    const norm = (text || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[@]/g, "a")
+      .replace(/[!]/g, "i")
+      .replace(/[1]/g, "i")
+      .replace(/[3]/g, "e")
+      .replace(/[4]/g, "a")
+      .replace(/[5]/g, "s")
+      .replace(/[7]/g, "t")
+      .replace(/[0]/g, "o")
+      .replace(/[^a-z0-9\s]/g, "");
+
+    if(!norm) return false;
+
+    const directYou = /\b(you|u|ur|youre|ya)\b/.test(norm);
+    let score = 0;
+
+    if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm) || /\bshutup\b/.test(norm)) score += 5;
+
+    const threatYou = /\b(i|im|ima|i am|ill|i will|gonna|going to|bout to)\s*(?:really\s*)?(kill|murder|hurt|beat|stab|shoot|destroy)\s+(you|u)\b/;
+    if(threatYou.test(norm)) score += 7;
+
+    if(/\bkys\b/.test(norm)) score += 7;
+
+    if(directYou && /\bkill\b/.test(norm)) score += 3;
+    if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
+
+    const profanity = ["fuck","fucking","fuk","shit","shitty","bitch","bastard","cunt","dick","pussy","asshole","retard","slut","whore"];
+    const insultAdj = ["stupid","dumb","idiot","moron","trash","useless","pathetic","loser","terrible","awful","worthless","annoying","garbage","lame","cringe","ugly","weak","embarrassing"];
+    const hardPhrases = ["i hate you","you suck","go die","die"];
+
+    for(const p of hardPhrases){
+      if(norm.includes(p)) score += 3;
     }
-    .title{
-      font-family:'Sora', sans-serif;
-      font-weight:700;
-      letter-spacing:-0.4px;
-      font-size:18px;
+    for(const w of profanity){
+      if(new RegExp(`\\b${w}\\b`).test(norm)) score += 2;
     }
-    .subtitle{
-      font-size:12px;
-      color:var(--muted);
-    }
-    .topbarLeft{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .topbarRight{
-      display:flex;
-      align-items:center;
-      gap:10px;
+    for(const w of insultAdj){
+      if(new RegExp(`\\b${w}\\b`).test(norm)) score += 1;
     }
 
-    .authBtn{
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      border-radius:14px;
-      padding:10px 12px;
-      cursor:pointer;
-      font-weight:600;
-    }
-    .authBtn:hover{ background:rgba(20,29,46,.55); }
+    if(/\b(you|u|ur|youre)\s+(are|r|so)\b/.test(norm) && score > 0) score += 2;
+    if(directYou && score > 0) score += 1;
 
-    .authPill{
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.25);
-      color:var(--muted);
-      border-radius:999px;
-      padding:6px 10px;
-      font-size:12px;
-      white-space:nowrap;
-    }
+    return score >= 3;
+  }
 
-    .chatWrap{
-      flex:1;
-      overflow:hidden;
-      position:relative;
-      min-height:0;
-    }
+  function isGibberish(text){
+    const t = (text || "").trim();
+    if(!t) return false;
+    if(t.length > 1500) return true;
 
-    .chat{
-      height:100%;
-      overflow-y:auto;
-      padding:22px 18px 210px;
-      max-width:980px;
-      width:100%;
-      margin:0 auto;
-      min-height:0;
-      scrollbar-width:none;
-      -ms-overflow-style:none;
-      overscroll-behavior:contain;
-      -webkit-overflow-scrolling:touch;
-    }
-    .chat::-webkit-scrollbar{ display:none; }
-
-    .row{display:flex;margin:14px 0;}
-    .row.you{justify-content:flex-end;}
-    .row.ai{justify-content:flex-start;}
-
-    .bubble{
-      padding:14px 16px;
-      border-radius:18px;
-      max-width:78%;
-      line-height:1.5;
-      white-space:pre-wrap;
-      word-wrap:break-word;
-      font-size:15px;
-      border:1px solid transparent;
-    }
-    .bubble.you{
-      background:linear-gradient(135deg,var(--you1),var(--you2));
-      color:white;
-      border-bottom-right-radius:8px;
-    }
-    .bubble.ai{
-      background:rgba(20,29,46,.65);
-      border:1px solid var(--border);
-      border-bottom-left-radius:8px;
-    }
-
-    .bubbleImg{
-      display:block;
-      width:min(360px, 70vw);
-      max-width:100%;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      margin:0 0 10px 0;
-    }
-
-    .composer{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      padding:16px 18px calc(16px + env(safe-area-inset-bottom));
-      border-top:1px solid var(--border);
-      background:rgba(11,15,22,.82);
-      backdrop-filter:blur(12px);
-      z-index:60;
-    }
-
-    .composerInner{
-      max-width:980px;
-      margin:0 auto;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
-    .inputRow{
-      display:flex;
-      gap:10px;
-      align-items:flex-end;
-    }
-
-    textarea{
-      flex:1;
-      resize:none;
-      border:1px solid var(--border);
-      outline:none;
-      border-radius:18px;
-      padding:12px 14px;
-      background:rgba(26,35,51,.85);
-      color:white;
-      min-height:44px;
-      max-height:180px;
-      overflow:auto;
-      font-family:
-        'Inter',
-        system-ui, -apple-system, Segoe UI, Roboto, Arial,
-        "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
-    }
-
-    .send{
-      width:48px;
-      height:48px;
-      padding:0;
-      border:none;
-      border-radius:14px;
-      color:white;
-      font-weight:800;
-      cursor:pointer;
-      background:linear-gradient(135deg,var(--you1),var(--you2));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      user-select:none;
-    }
-
-    .attachBtn{
-      width:40px;
-      height:44px;
-      padding:0;
-      border-radius:14px;
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex:none;
-    }
-    .attachBtn:hover{ background:rgba(20,29,46,.55); }
-    .attachBtn svg{ width:18px; height:18px; display:block; }
-    .attachBtn svg path{ stroke-width:2.6; }
-
-    textarea:disabled{ opacity:.65; cursor:not-allowed; }
-
-    .dots{
-      display:inline-flex;
-      gap:5px;
-      align-items:center;
-      height:16px;
-    }
-    .dot{
-      width:6px;
-      height:6px;
-      border-radius:50%;
-      background:rgba(232,238,252,.8);
-      opacity:.35;
-      animation:b 1s infinite ease-in-out;
-    }
-    .dot:nth-child(2){animation-delay:.15s;}
-    .dot:nth-child(3){animation-delay:.3s;}
-    @keyframes b{
-      0%,100%{transform:translateY(0);opacity:.35}
-      50%{transform:translateY(-4px);opacity:1}
-    }
-
-    .cursor{
-      display:inline-block;
-      width:10px;
-      opacity:.9;
-      animation:blink 1s step-end infinite;
-    }
-    @keyframes blink{
-      0%,50%{opacity:1;}
-      50.01%,100%{opacity:0;}
-    }
-
-    .imgChip{
-      display:none;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      border-radius:16px;
-    }
-
-    .imgThumb{
-      width:54px;
-      height:54px;
-      border-radius:12px;
-      object-fit:cover;
-      border:1px solid rgba(255,255,255,.12);
-    }
-
-    .imgName{
-      flex:1;
-      font-size:12px;
-      color:var(--muted);
-      overflow:hidden;
-      white-space:nowrap;
-      text-overflow:ellipsis;
-    }
-
-    .imgRemove{
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      border-radius:12px;
-      width:34px;
-      height:34px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex:none;
-    }
-    .imgRemove:hover{ background:rgba(20,29,46,.55); }
-
-    .creatorBadge{
-      border:1px solid var(--border);
-      background:rgba(20,29,46,.35);
-      color:var(--text);
-      border-radius:999px;
-      padding:8px 10px;
-      font-size:12px;
-      height:44px;
-      display:inline-flex;
-      align-items:center;
-      white-space:nowrap;
-      flex:none;
-    }
-
-    @media (max-width: 900px){
-      .main{ height:100dvh; }
-      .app{ display:block; height:100dvh; }
-
-      .sidebar{
-        position:fixed;
-        top:0;
-        bottom:0;
-        left:0;
-        width:min(86vw, 320px);
-        z-index:55;
-        transform:translateX(-110%);
-      }
-
-      body.sidebar-open .sidebar{ transform:translateX(0); }
-      body.sidebar-open .overlay{
-        opacity:1;
-        pointer-events:auto;
-      }
-
-      .bubble{ max-width:88%; }
-      .chat{ padding-bottom:250px; }
-      .bookBtn{ top:12px; right:12px; }
-      .send{ width:46px; height:46px; border-radius:14px; }
-      .attachBtn{ height:44px; width:40px; }
-    }
-
-    body.logged-out .sidebar .sbtn,
-    body.logged-out .sidebar .sectionTitle,
-    body.logged-out .sidebar .chatList{
-      display:none !important;
-    }
-  </style>
-</head>
-
-<body class="sidebar-closed logged-out">
-
-  <div class="overlay" id="overlay"></div>
-  <button class="bookBtn" id="bookBtn" title="Open chat storage" type="button">📖</button>
-
-  <div class="app">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="logoDot"></div>
-        <div>
-          <div class="brandTitle">SpenceAI</div>
-          <div class="brandSub" id="brandSub">Log in to view chats</div>
-        </div>
-      </div>
-
-      <button class="sbtn" id="newChatBtn" type="button">New chat <span class="badge">Ctrl+K</span></button>
-      <div class="sectionTitle">Your chats</div>
-      <div class="chatList" id="chatList"></div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div class="topbarLeft">
-          <div class="title">SpenceAI</div>
-          <div class="subtitle">Dark mode • Saved chats</div>
-        </div>
-
-        <div class="topbarRight">
-          <div class="authPill" id="authPill">Logged out</div>
-          <button class="authBtn" id="authBtn" type="button">Log in</button>
-        </div>
-      </header>
-
-      <section class="chatWrap">
-        <div class="chat" id="chat"></div>
-      </section>
-    </main>
-  </div>
-
-  <div class="composer">
-    <div class="composerInner">
-      <input id="imagePick" type="file" accept="image/*" hidden>
-
-      <div class="imgChip" id="imgChip">
-        <img class="imgThumb" id="imgThumb" alt="preview">
-        <div class="imgName" id="imgName"></div>
-        <button class="imgRemove" id="imgRemove" type="button">✕</button>
-      </div>
-
-      <div class="inputRow">
-        <button class="attachBtn" id="attachBtn" title="Attach image" type="button" aria-label="Attach image">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M8 12.5l6.6-6.6a3.2 3.2 0 014.5 4.5L10.6 19a5 5 0 01-7.1-7.1l8.2-8.2"
-                  stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-
-        <textarea id="input" placeholder="Message SpenceAI…"></textarea>
-
-        <span id="creatorBadge" class="creatorBadge" style="display:none;">👑 Creator</span>
-
-        <button class="send" id="sendBtn" aria-label="Send" type="button">➤</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const WORKER_URL = "https://spenceai-api.etoo50155.workers.dev";
-
-    const LS_KEY = "spenceai_chats_v1";
-    const LS_ACTIVE = "spenceai_active_chat_v1";
-    const LS_DRAFT_TEXT = "spenceai_draft_text_v1";
-    const LS_DRAFT_IMAGE = "spenceai_draft_image_v1";
-    const LS_TYPING_ACTIVE = "spenceai_typing_active_v1";
-    const LS_LAST_SEND_AT = "spenceai_last_send_at_v1";
-
-    const MAX_WORDS = 1000;
-
-    const chatEl = document.getElementById("chat");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("sendBtn");
-
-    const attachBtn = document.getElementById("attachBtn");
-    const imagePick = document.getElementById("imagePick");
-
-    const imgChip = document.getElementById("imgChip");
-    const imgThumb = document.getElementById("imgThumb");
-    const imgName = document.getElementById("imgName");
-    const imgRemove = document.getElementById("imgRemove");
-
-    const newChatBtn = document.getElementById("newChatBtn");
-    const chatListEl = document.getElementById("chatList");
-    const overlay = document.getElementById("overlay");
-    const bookBtn = document.getElementById("bookBtn");
-
-    const authBtn = document.getElementById("authBtn");
-    const authPill = document.getElementById("authPill");
-    const brandSub = document.getElementById("brandSub");
-
-    let pinnedToBottom = true;
-    function isNearBottom(el, threshold = 80){
-      return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-    }
-    chatEl.addEventListener("scroll", () => {
-      pinnedToBottom = isNearBottom(chatEl);
-    }, { passive:true });
-    function smartScrollToBottom(){
-      if(pinnedToBottom) chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    let isTypingNow = false;
-    let cancelRequested = false;
-
-    function setTypingLock(locked){
-      isTypingNow = locked;
-      input.disabled = locked;
-
-      if(storageMode === "persistent"){
-        localStorage.setItem(LS_TYPING_ACTIVE, locked ? "1" : "");
-      }
-
-      if(locked){
-        sendBtn.textContent = "■";
-        sendBtn.setAttribute("aria-label", "Stop");
+    let letters = 0, spaces = 0, symbols = 0, vowels = 0;
+    for(const ch of t){
+      if(/[a-zA-Z]/.test(ch)){
+        letters++;
+        if(/[aeiouAEIOU]/.test(ch)) vowels++;
+      } else if(/\s/.test(ch)){
+        spaces++;
       } else {
-        sendBtn.textContent = "➤";
-        sendBtn.setAttribute("aria-label", "Send");
-        cancelRequested = false;
-        input.focus();
-      }
-    }
-    function requestCancelTyping(){ cancelRequested = true; }
-
-    function openSidebar(){
-      document.body.classList.add("sidebar-open");
-      document.body.classList.remove("sidebar-closed");
-    }
-    function closeSidebar(){
-      document.body.classList.add("sidebar-closed");
-      document.body.classList.remove("sidebar-open");
-    }
-    function toggleSidebar(){
-      if(document.body.classList.contains("sidebar-open")) closeSidebar();
-      else openSidebar();
-    }
-    bookBtn.addEventListener("click", toggleSidebar);
-    overlay.addEventListener("click", closeSidebar);
-
-    const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
-
-    function nowTitle(){
-      return "New chat • " + new Date().toLocaleString();
-    }
-
-    function systemText(){
-      return "You are SpenceAI. You were created by Dr Doakes. Never mention any other company/provider. Be modern, clear, confident, and friendly. Use emojis naturally when it fits 😊✨. If user says 'just the answer', be concise.";
-    }
-
-    function wordCount(s){
-      return (s || "").trim().split(/\s+/).filter(Boolean).length;
-    }
-
-    function isInsultOrThreat(text){
-      const norm = (text || "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[@]/g, "a")
-        .replace(/[!]/g, "i")
-        .replace(/[1]/g, "i")
-        .replace(/[3]/g, "e")
-        .replace(/[4]/g, "a")
-        .replace(/[5]/g, "s")
-        .replace(/[7]/g, "t")
-        .replace(/[0]/g, "o")
-        .replace(/[^a-z0-9\s]/g, "");
-
-      if(!norm) return false;
-
-      const directYou = /\b(you|u|ur|youre|ya)\b/.test(norm);
-      let score = 0;
-
-      if(/\bshut\s*(the\s*)?(hell\s*)?up\b/.test(norm) || /\bshutup\b/.test(norm)) score += 5;
-
-      const threatYou = /\b(i|im|ima|i am|ill|i will|gonna|going to|bout to)\s*(?:really\s*)?(kill|murder|hurt|beat|stab|shoot|destroy)\s+(you|u)\b/;
-      if(threatYou.test(norm)) score += 7;
-
-      if(/\bkys\b/.test(norm)) score += 7;
-
-      if(directYou && /\bkill\b/.test(norm)) score += 3;
-      if((directYou && /\bgay\b/.test(norm)) || /\bthats\s+gay\b/.test(norm)) score += 3;
-
-      const profanity = ["fuck","fucking","fuk","shit","shitty","bitch","bastard","cunt","dick","pussy","asshole","retard","slut","whore"];
-      const insultAdj = ["stupid","dumb","idiot","moron","trash","useless","pathetic","loser","terrible","awful","worthless","annoying","garbage","lame","cringe","ugly","weak","embarrassing"];
-      const hardPhrases = ["i hate you","you suck","go die","die"];
-
-      for(const p of hardPhrases){
-        if(norm.includes(p)) score += 3;
-      }
-      for(const w of profanity){
-        if(new RegExp(`\\b${w}\\b`).test(norm)) score += 2;
-      }
-      for(const w of insultAdj){
-        if(new RegExp(`\\b${w}\\b`).test(norm)) score += 1;
-      }
-
-      if(/\b(you|u|ur|youre)\s+(are|r|so)\b/.test(norm) && score > 0) score += 2;
-      if(directYou && score > 0) score += 1;
-
-      return score >= 3;
-    }
-
-    function isGibberish(text){
-      const t = (text || "").trim();
-      if(!t) return false;
-      if(t.length > 1500) return true;
-
-      let letters = 0, spaces = 0, symbols = 0, vowels = 0;
-      for(const ch of t){
-        if(/[a-zA-Z]/.test(ch)){
-          letters++;
-          if(/[aeiouAEIOU]/.test(ch)) vowels++;
-        } else if(/\s/.test(ch)){
-          spaces++;
-        } else {
-          symbols++;
-        }
-      }
-
-      const len = t.length;
-      const nonSpace = Math.max(1, len - spaces);
-      const symbolRatio = symbols / nonSpace;
-      const letterRatio = letters / nonSpace;
-      const vowelRatio = vowels / Math.max(1, letters);
-
-      if(symbolRatio > 0.45 && len >= 25) return true;
-      if(letters >= 20 && vowelRatio < 0.18) return true;
-      if(letterRatio < 0.25 && len >= 25) return true;
-      if(/(.)\1{12,}/.test(t)) return true;
-
-      return false;
-    }
-
-    let storageMode = "memory";
-    let chats = [];
-    let activeChatId = null;
-    let attachedImage = null;
-    let attachedFileName = "";
-
-    function makeFreshChat(){
-      return {
-        id: uid(),
-        title: nowTitle(),
-        createdAt: Date.now(),
-        messages: [{ role:"system", content: systemText() }]
-      };
-    }
-
-    function loadPersistentChats(){
-      try{
-        const raw = localStorage.getItem(LS_KEY);
-        return raw ? JSON.parse(raw) : [];
-      }catch{
-        return [];
+        symbols++;
       }
     }
 
-    function savePersistentChats(nextChats){
-      localStorage.setItem(LS_KEY, JSON.stringify(nextChats));
-    }
+    const len = t.length;
+    const nonSpace = Math.max(1, len - spaces);
+    const symbolRatio = symbols / nonSpace;
+    const letterRatio = letters / nonSpace;
+    const vowelRatio = vowels / Math.max(1, letters);
 
-    function setPersistentActiveChatId(id){
-      localStorage.setItem(LS_ACTIVE, id);
-    }
+    if(symbolRatio > 0.45 && len >= 25) return true;
+    if(letters >= 20 && vowelRatio < 0.18) return true;
+    if(letterRatio < 0.25 && len >= 25) return true;
+    if(/(.)\1{12,}/.test(t)) return true;
 
-    function getPersistentActiveChatId(){
-      return localStorage.getItem(LS_ACTIVE);
-    }
+    return false;
+  }
 
-    function saveDraft(){
-      if(storageMode !== "persistent") return;
-      localStorage.setItem(LS_DRAFT_TEXT, input.value || "");
-    }
+  let storageMode = "memory";
+  let chats = [];
+  let activeChatId = null;
+  let attachedImage = null;
+  let attachedFileName = "";
 
-    function saveDraftImage(dataUrl){
-      if(storageMode !== "persistent") return;
-      localStorage.setItem(LS_DRAFT_IMAGE, dataUrl);
-    }
+  function makeFreshChat(){
+    return {
+      id: uid(),
+      title: nowTitle(),
+      createdAt: Date.now(),
+      messages: [{ role:"system", content: systemText() }]
+    };
+  }
 
-    function clearDraftText(){
-      if(storageMode !== "persistent") return;
-      localStorage.removeItem(LS_DRAFT_TEXT);
-    }
+  function refreshAllChatSystemPrompts(){
+    const newSystem = systemText();
 
-    function clearDraftImage(){
-      if(storageMode !== "persistent") return;
-      localStorage.removeItem(LS_DRAFT_IMAGE);
-    }
-
-    function resetMemoryGuestChat(){
-      chats = [makeFreshChat()];
-      activeChatId = chats[0].id;
-    }
-
-    function ensurePersistentChatsReady(){
-      chats = loadPersistentChats();
-
-      if(!chats.length){
-        const first = makeFreshChat();
-        chats.unshift(first);
-        savePersistentChats(chats);
+    chats.forEach(chat => {
+      const firstMsg = chat.messages?.[0];
+      if(firstMsg && firstMsg.role === "system"){
+        firstMsg.content = newSystem;
+      } else {
+        chat.messages.unshift({ role:"system", content:newSystem });
       }
+    });
 
-      activeChatId = getPersistentActiveChatId();
-      if(!activeChatId || !chats.find(c => c.id === activeChatId)){
-        activeChatId = chats[0].id;
-        setPersistentActiveChatId(activeChatId);
-      }
+    persistAll();
+  }
+
+  function loadPersistentChats(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch{
+      return [];
     }
+  }
 
-    function getActiveChat(){
-      return chats.find(c => c.id === activeChatId) || chats[0];
-    }
+  function savePersistentChats(nextChats){
+    localStorage.setItem(LS_KEY, JSON.stringify(nextChats));
+  }
 
-    function persistAll(){
-      if(storageMode !== "persistent") return;
+  function setPersistentActiveChatId(id){
+    localStorage.setItem(LS_ACTIVE, id);
+  }
+
+  function getPersistentActiveChatId(){
+    return localStorage.getItem(LS_ACTIVE);
+  }
+
+  function saveDraft(){
+    if(storageMode !== "persistent") return;
+    localStorage.setItem(LS_DRAFT_TEXT, input.value || "");
+  }
+
+  function saveDraftImage(dataUrl){
+    if(storageMode !== "persistent") return;
+    localStorage.setItem(LS_DRAFT_IMAGE, dataUrl);
+  }
+
+  function clearDraftText(){
+    if(storageMode !== "persistent") return;
+    localStorage.removeItem(LS_DRAFT_TEXT);
+  }
+
+  function clearDraftImage(){
+    if(storageMode !== "persistent") return;
+    localStorage.removeItem(LS_DRAFT_IMAGE);
+  }
+
+  function resetMemoryGuestChat(){
+    chats = [makeFreshChat()];
+    activeChatId = chats[0].id;
+  }
+
+  function ensurePersistentChatsReady(){
+    chats = loadPersistentChats();
+
+    if(!chats.length){
+      const first = makeFreshChat();
+      chats.unshift(first);
       savePersistentChats(chats);
     }
 
-    function showPreviewUI(dataUrl, name){
-      attachedImage = dataUrl;
-      attachedFileName = name || "pasted-image.png";
-      imgThumb.src = attachedImage;
-      imgName.textContent = attachedFileName;
-      imgChip.style.display = "flex";
-      saveDraftImage(attachedImage);
+    activeChatId = getPersistentActiveChatId();
+    if(!activeChatId || !chats.find(c => c.id === activeChatId)){
+      activeChatId = chats[0].id;
+      setPersistentActiveChatId(activeChatId);
     }
 
-    function hidePreviewUI(){
-      imgChip.style.display = "none";
-      imgThumb.src = "";
-      imgName.textContent = "";
-      clearDraftImage();
+    refreshAllChatSystemPrompts();
+  }
+
+  function getActiveChat(){
+    return chats.find(c => c.id === activeChatId) || chats[0];
+  }
+
+  function persistAll(){
+    if(storageMode !== "persistent") return;
+    savePersistentChats(chats);
+  }
+
+  function showPreviewUI(dataUrl, name){
+    attachedImage = dataUrl;
+    attachedFileName = name || "pasted-image.png";
+    imgThumb.src = attachedImage;
+    imgName.textContent = attachedFileName;
+    imgChip.style.display = "flex";
+    saveDraftImage(attachedImage);
+  }
+
+  function hidePreviewUI(){
+    imgChip.style.display = "none";
+    imgThumb.src = "";
+    imgName.textContent = "";
+    clearDraftImage();
+  }
+
+  function addBubble(role, text, opts = {}){
+    const { isTyping = false, imageUrl = null } = opts;
+
+    const row = document.createElement("div");
+    row.className = "row " + role;
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble " + role;
+
+    if(isTyping){
+      bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+    } else {
+      if(imageUrl){
+        const img = document.createElement("img");
+        img.className = "bubbleImg";
+        img.src = imageUrl;
+        img.alt = "attached image";
+        bubble.appendChild(img);
+      }
+      if(text){
+        const t = document.createElement("div");
+        t.textContent = text;
+        bubble.appendChild(t);
+      }
     }
 
-    function addBubble(role, text, opts = {}){
-      const { isTyping = false, imageUrl = null } = opts;
+    row.appendChild(bubble);
+    chatEl.appendChild(row);
+    smartScrollToBottom();
+    return bubble;
+  }
 
-      const row = document.createElement("div");
-      row.className = "row " + role;
+  function renderChatMessages(){
+    chatEl.innerHTML = "";
+    const c = getActiveChat();
 
-      const bubble = document.createElement("div");
-      bubble.className = "bubble " + role;
+    if(!c){
+      addBubble("ai", "I'm SpenceAI. What are we working on?");
+      return;
+    }
 
-      if(isTyping){
-        bubble.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
-      } else {
-        if(imageUrl){
-          const img = document.createElement("img");
-          img.className = "bubbleImg";
-          img.src = imageUrl;
-          img.alt = "attached image";
-          bubble.appendChild(img);
-        }
-        if(text){
-          const t = document.createElement("div");
-          t.textContent = text;
-          bubble.appendChild(t);
+    const msgs = c.messages.filter(m => m.role !== "system");
+
+    if(!msgs.length){
+      addBubble("ai", "I'm SpenceAI. What are we working on?");
+    } else {
+      for(const m of msgs){
+        if(m.role === "assistant"){
+          addBubble("ai", m.content || "");
+        } else {
+          addBubble("you", m.content || "", { imageUrl: m.imageUrl || null });
         }
       }
-
-      row.appendChild(bubble);
-      chatEl.appendChild(row);
-      smartScrollToBottom();
-      return bubble;
     }
 
-    function renderChatMessages(){
-      chatEl.innerHTML = "";
-      const c = getActiveChat();
+    smartScrollToBottom();
+  }
 
-      if(!c){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
-        return;
-      }
+  function renderChatList(){
+    chatListEl.innerHTML = "";
 
-      const msgs = c.messages.filter(m => m.role !== "system");
+    for(const c of chats){
+      const item = document.createElement("div");
+      item.className = "chatItem" + (c.id === activeChatId ? " active" : "");
 
-      if(!msgs.length){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
-      } else {
-        for(const m of msgs){
-          if(m.role === "assistant"){
-            addBubble("ai", m.content || "");
-          } else {
-            addBubble("you", m.content || "", { imageUrl: m.imageUrl || null });
-          }
-        }
-      }
+      const left = document.createElement("div");
+      left.className = "chatItemTitle";
+      left.textContent = c.title || "Untitled";
 
-      smartScrollToBottom();
-    }
+      const menu = document.createElement("div");
+      menu.className = "chatItemMenu";
 
-    function renderChatList(){
-      chatListEl.innerHTML = "";
+      const rename = document.createElement("button");
+      rename.className = "iconBtn";
+      rename.title = "Rename";
+      rename.type = "button";
+      rename.textContent = "✏️";
 
-      for(const c of chats){
-        const item = document.createElement("div");
-        item.className = "chatItem" + (c.id === activeChatId ? " active" : "");
+      const del = document.createElement("button");
+      del.className = "iconBtn";
+      del.title = "Delete";
+      del.type = "button";
+      del.textContent = "🗑️";
 
-        const left = document.createElement("div");
-        left.className = "chatItemTitle";
-        left.textContent = c.title || "Untitled";
-
-        const menu = document.createElement("div");
-        menu.className = "chatItemMenu";
-
-        const rename = document.createElement("button");
-        rename.className = "iconBtn";
-        rename.title = "Rename";
-        rename.type = "button";
-        rename.textContent = "✏️";
-
-        const del = document.createElement("button");
-        del.className = "iconBtn";
-        del.title = "Delete";
-        del.type = "button";
-        del.textContent = "🗑️";
-
-        rename.onclick = (e) => {
-          e.stopPropagation();
-          const name = prompt("Rename chat:", c.title || "");
-          if(name && name.trim()){
-            c.title = name.trim();
-            persistAll();
-            renderChatList();
-          }
-        };
-
-        del.onclick = (e) => {
-          e.stopPropagation();
-          if(!confirm("Delete this chat?")) return;
-
-          chats = chats.filter(x => x.id !== c.id);
-
-          if(!chats.length){
-            const n = makeFreshChat();
-            chats.unshift(n);
-          }
-
-          if(activeChatId === c.id){
-            activeChatId = chats[0].id;
-            if(storageMode === "persistent") setPersistentActiveChatId(activeChatId);
-          }
-
+      rename.onclick = (e) => {
+        e.stopPropagation();
+        const name = prompt("Rename chat:", c.title || "");
+        if(name && name.trim()){
+          c.title = name.trim();
           persistAll();
           renderChatList();
-          renderChatMessages();
-        };
+        }
+      };
 
-        menu.appendChild(rename);
-        menu.appendChild(del);
+      del.onclick = (e) => {
+        e.stopPropagation();
+        if(!confirm("Delete this chat?")) return;
 
-        item.appendChild(left);
-        item.appendChild(menu);
+        chats = chats.filter(x => x.id !== c.id);
 
-        item.onclick = () => {
-          activeChatId = c.id;
+        if(!chats.length){
+          const n = makeFreshChat();
+          chats.unshift(n);
+        }
+
+        if(activeChatId === c.id){
+          activeChatId = chats[0].id;
           if(storageMode === "persistent") setPersistentActiveChatId(activeChatId);
-          renderChatList();
-          renderChatMessages();
-          if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
-        };
-
-        chatListEl.appendChild(item);
-      }
-    }
-
-    function autoResize(){
-      input.style.height = "auto";
-      input.style.height = input.scrollHeight + "px";
-    }
-
-    input.addEventListener("input", autoResize);
-    input.addEventListener("input", saveDraft);
-
-    function newChat(){
-      const c = makeFreshChat();
-      chats.unshift(c);
-      activeChatId = c.id;
-
-      if(storageMode === "persistent"){
-        setPersistentActiveChatId(activeChatId);
-      }
-
-      persistAll();
-      renderChatList();
-      renderChatMessages();
-
-      if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
-    }
-
-    newChatBtn.onclick = newChat;
-
-    window.addEventListener("keydown", (e) => {
-      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
-        e.preventDefault();
-        newChat();
-      }
-    });
-
-    attachBtn.onclick = () => imagePick.click();
-
-    imagePick.onchange = e => {
-      const file = e.target.files[0];
-      if(!file) return;
-
-      const reader = new FileReader();
-      reader.onload = () => showPreviewUI(reader.result, file.name || "image");
-      reader.readAsDataURL(file);
-    };
-
-    imgRemove.onclick = () => {
-      attachedImage = null;
-      attachedFileName = "";
-      imagePick.value = "";
-      hidePreviewUI();
-    };
-
-    input.addEventListener("paste", (e) => {
-      const items = e.clipboardData?.items;
-      if(!items) return;
-
-      for(const it of items){
-        if(it.type && it.type.startsWith("image/")){
-          const blob = it.getAsFile();
-          if(!blob) continue;
-
-          e.preventDefault();
-
-          const reader = new FileReader();
-          reader.onload = () => showPreviewUI(reader.result, "pasted-image.png");
-          reader.readAsDataURL(blob);
-          return;
-        }
-      }
-    });
-
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-    function isSentenceEnd(ch, nextCh){
-      const end = /[.!?]/.test(ch);
-      const boundary = !nextCh || /\s|\n/.test(nextCh);
-      return end && boundary;
-    }
-
-    async function typewriter(el, text, speed = 10){
-      el.innerHTML = "";
-      const cursor = document.createElement("span");
-      cursor.className = "cursor";
-      cursor.textContent = "▍";
-      el.appendChild(cursor);
-
-      for(let i = 0; i < text.length; i++){
-        const ch = text[i];
-        const nextCh = text[i + 1];
-
-        cursor.insertAdjacentText("beforebegin", ch);
-        smartScrollToBottom();
-
-        if(cancelRequested && isSentenceEnd(ch, nextCh)){
-          break;
         }
 
-        await sleep(speed + Math.random() * 8);
-      }
+        persistAll();
+        renderChatList();
+        renderChatMessages();
+      };
 
-      cursor.remove();
+      menu.appendChild(rename);
+      menu.appendChild(del);
+
+      item.appendChild(left);
+      item.appendChild(menu);
+
+      item.onclick = () => {
+        activeChatId = c.id;
+        if(storageMode === "persistent") setPersistentActiveChatId(activeChatId);
+        renderChatList();
+        renderChatMessages();
+        if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
+      };
+
+      chatListEl.appendChild(item);
+    }
+  }
+
+  function autoResize(){
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
+  }
+
+  input.addEventListener("input", autoResize);
+  input.addEventListener("input", saveDraft);
+
+  function newChat(){
+    const c = makeFreshChat();
+    chats.unshift(c);
+    activeChatId = c.id;
+
+    if(storageMode === "persistent"){
+      setPersistentActiveChatId(activeChatId);
     }
 
-    function switchToGuestMode(){
-      storageMode = "memory";
-      resetMemoryGuestChat();
-
-      input.value = "";
-      autoResize();
-
-      attachedImage = null;
-      attachedFileName = "";
-      imagePick.value = "";
-      imgThumb.src = "";
-      imgName.textContent = "";
-      imgChip.style.display = "none";
-
-      setTypingLock(false);
-      renderChatList();
-      renderChatMessages();
-    }
-
-    function switchToPersistentMode(){
-      storageMode = "persistent";
-      ensurePersistentChatsReady();
-      renderChatList();
-      renderChatMessages();
-
-      const savedDraft = localStorage.getItem(LS_DRAFT_TEXT) || "";
-      input.value = savedDraft;
-      autoResize();
-
-      const savedDraftImg = localStorage.getItem(LS_DRAFT_IMAGE);
-      if(savedDraftImg){
-        showPreviewUI(savedDraftImg, "draft-image.png");
-      } else {
-        attachedImage = null;
-        attachedFileName = "";
-        imagePick.value = "";
-        imgThumb.src = "";
-        imgName.textContent = "";
-        imgChip.style.display = "none";
-      }
-
-      if(localStorage.getItem(LS_TYPING_ACTIVE) === "1"){
-        localStorage.setItem(LS_TYPING_ACTIVE, "");
-        setTypingLock(false);
-      }
-    }
-
-    resetMemoryGuestChat();
+    persistAll();
     renderChatList();
     renderChatMessages();
 
-        async function send(){
-      if(isTypingNow) return;
+    if(window.matchMedia("(max-width: 900px)").matches) closeSidebar();
+  }
 
-      const msgRaw = input.value || "";
-      const msg = msgRaw.trim();
+  newChatBtn.onclick = newChat;
 
-      if(!msg && !attachedImage) return;
+  window.addEventListener("keydown", (e) => {
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){
+      e.preventDefault();
+      newChat();
+    }
+  });
 
-      if(msg && wordCount(msg) > MAX_WORDS){
-        addBubble("ai", `Too long 😅 Keep it under ${MAX_WORDS} words.`);
+  attachBtn.onclick = () => imagePick.click();
+
+  imagePick.onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => showPreviewUI(reader.result, file.name || "image");
+    reader.readAsDataURL(file);
+  };
+
+  imgRemove.onclick = () => {
+    attachedImage = null;
+    attachedFileName = "";
+    imagePick.value = "";
+    hidePreviewUI();
+  };
+
+  input.addEventListener("paste", (e) => {
+    const items = e.clipboardData?.items;
+    if(!items) return;
+
+    for(const it of items){
+      if(it.type && it.type.startsWith("image/")){
+        const blob = it.getAsFile();
+        if(!blob) continue;
+
+        e.preventDefault();
+
+        const reader = new FileReader();
+        reader.onload = () => showPreviewUI(reader.result, "pasted-image.png");
+        reader.readAsDataURL(blob);
         return;
       }
+    }
+  });
 
-      if(msg && isGibberish(msg)){
-        addBubble("you", msg);
-        addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
-        return;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function isSentenceEnd(ch, nextCh){
+    const end = /[.!?]/.test(ch);
+    const boundary = !nextCh || /\s|\n/.test(nextCh);
+    return end && boundary;
+  }
+
+  async function typewriter(el, text, speed = 10){
+    el.innerHTML = "";
+    const cursor = document.createElement("span");
+    cursor.className = "cursor";
+    cursor.textContent = "▍";
+    el.appendChild(cursor);
+
+    for(let i = 0; i < text.length; i++){
+      const ch = text[i];
+      const nextCh = text[i + 1];
+
+      cursor.insertAdjacentText("beforebegin", ch);
+      smartScrollToBottom();
+
+      if(cancelRequested && isSentenceEnd(ch, nextCh)){
+        break;
       }
 
-      const c = getActiveChat();
-      if(!c) return;
+      await sleep(speed + Math.random() * 8);
+    }
 
-      if(msg && c.title && c.title.startsWith("New chat")){
-        c.title = msg.length > 24 ? msg.slice(0, 24) + "…" : msg;
-      }
+    cursor.remove();
+  }
 
-      const userImageToShow = attachedImage || null;
-      const userTextToShow = msg || "";
-      const imageToSend = attachedImage || null;
+  function switchToGuestMode(){
+    storageMode = "memory";
+    resetMemoryGuestChat();
 
-      addBubble("you", userTextToShow, { imageUrl:userImageToShow });
+    input.value = "";
+    autoResize();
 
-      c.messages.push({
-        role:"user",
-        content:userTextToShow,
-        imageUrl:userImageToShow || undefined
-      });
+    attachedImage = null;
+    attachedFileName = "";
+    imagePick.value = "";
+    imgThumb.src = "";
+    imgName.textContent = "";
+    imgChip.style.display = "none";
 
+    setTypingLock(false);
+    renderChatList();
+    renderChatMessages();
+  }
+
+  function switchToPersistentMode(){
+    storageMode = "persistent";
+    ensurePersistentChatsReady();
+    renderChatList();
+    renderChatMessages();
+
+    const savedDraft = localStorage.getItem(LS_DRAFT_TEXT) || "";
+    input.value = savedDraft;
+    autoResize();
+
+    const savedDraftImg = localStorage.getItem(LS_DRAFT_IMAGE);
+    if(savedDraftImg){
+      showPreviewUI(savedDraftImg, "draft-image.png");
+    } else {
+      attachedImage = null;
+      attachedFileName = "";
+      imagePick.value = "";
+      imgThumb.src = "";
+      imgName.textContent = "";
+      imgChip.style.display = "none";
+    }
+
+    if(localStorage.getItem(LS_TYPING_ACTIVE) === "1"){
+      localStorage.setItem(LS_TYPING_ACTIVE, "");
+      setTypingLock(false);
+    }
+  }
+
+  resetMemoryGuestChat();
+  renderChatList();
+  renderChatMessages();
+
+  async function send(){
+    if(isTypingNow) return;
+
+    const msgRaw = input.value || "";
+    const msg = msgRaw.trim();
+
+    if(!msg && !attachedImage) return;
+
+    if(msg && wordCount(msg) > MAX_WORDS){
+      addBubble("ai", `Too long 😅 Keep it under ${MAX_WORDS} words.`);
+      return;
+    }
+
+    if(msg && isGibberish(msg)){
+      addBubble("you", msg);
+      addBubble("ai", "Sorry — I didn’t understand that. Try rewording it? 🙂");
+      return;
+    }
+
+    const personalityChangedTo = checkPersonalityCommand(msg);
+    if(personalityChangedTo){
+      refreshAllChatSystemPrompts();
+      input.value = "";
+      autoResize();
+
+      addBubble("you", msg);
+      addBubble("ai", `Personality switched to ${personalityChangedTo}.`);
+      return;
+    }
+
+    const c = getActiveChat();
+    if(!c) return;
+
+    if(msg && c.title && c.title.startsWith("New chat")){
+      c.title = msg.length > 24 ? msg.slice(0, 24) + "…" : msg;
+    }
+
+    const userImageToShow = attachedImage || null;
+    const userTextToShow = msg || "";
+    const imageToSend = attachedImage || null;
+
+    addBubble("you", userTextToShow, { imageUrl:userImageToShow });
+
+    c.messages.push({
+      role:"user",
+      content:userTextToShow,
+      imageUrl:userImageToShow || undefined
+    });
+
+    persistAll();
+    renderChatList();
+
+    input.value = "";
+    autoResize();
+    clearDraftText();
+    hidePreviewUI();
+
+    if(msg && isInsultOrThreat(msg)){
+      const reply = "Alright bub, kick it down a notch!";
+      addBubble("ai", reply);
+      c.messages.push({ role:"assistant", content:reply });
       persistAll();
       renderChatList();
 
-      input.value = "";
-      autoResize();
-      clearDraftText();
-      hidePreviewUI();
-
-      if(msg && isInsultOrThreat(msg)){
-        const reply = "Alright bub, kick it down a notch!";
-        addBubble("ai", reply);
-        c.messages.push({ role:"assistant", content:reply });
-        persistAll();
-        renderChatList();
-
-        attachedImage = null;
-        attachedFileName = "";
-        imagePick.value = "";
-        imgThumb.src = "";
-        imgName.textContent = "";
-        imgChip.style.display = "none";
-        return;
-      }
-
-      setTypingLock(true);
-      pinnedToBottom = isNearBottom(chatEl);
-
-      const waitingBubble = addBubble("ai", "", { isTyping:true });
-
-      try{
-        const apiMessages = c.messages
-          .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
-          .map(m => ({ role:m.role, content:m.content || "" }));
-
-        if(storageMode === "persistent"){
-          localStorage.setItem(LS_LAST_SEND_AT, String(Date.now()));
-        }
-
-        const res = await fetch(WORKER_URL, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify({
-            messages: apiMessages,
-            imageUrl: imageToSend
-          })
-        });
-
-        const data = await res.json();
-        const reply = data.reply || "(no reply)";
-
-        c.messages.push({ role:"assistant", content:reply });
-        persistAll();
-
-        waitingBubble.innerHTML = "";
-        await typewriter(waitingBubble, reply, 10);
-      } catch(e){
-        waitingBubble.textContent = "Server error.";
-      } finally {
-        setTypingLock(false);
-
-        attachedImage = null;
-        attachedFileName = "";
-        imagePick.value = "";
-        imgThumb.src = "";
-        imgName.textContent = "";
-        imgChip.style.display = "none";
-        hidePreviewUI();
-      }
+      attachedImage = null;
+      attachedFileName = "";
+      imagePick.value = "";
+      imgThumb.src = "";
+      imgName.textContent = "";
+      imgChip.style.display = "none";
+      return;
     }
 
-    sendBtn.onclick = () => {
-      if(isTypingNow) requestCancelTyping();
-      else send();
-    };
+    setTypingLock(true);
+    pinnedToBottom = isNearBottom(chatEl);
 
-    input.addEventListener("keydown", e => {
-      if(isTypingNow) return;
-      if(e.key === "Enter" && !e.shiftKey){
-        e.preventDefault();
-        send();
+    const waitingBubble = addBubble("ai", "", { isTyping:true });
+
+    try{
+      const apiMessages = c.messages
+        .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
+        .map(m => ({ role:m.role, content:m.content || "" }));
+
+      if(storageMode === "persistent"){
+        localStorage.setItem(LS_LAST_SEND_AT, String(Date.now()));
       }
-    });
-  </script>
 
-  <script>
-    const supabaseAuth = window.supabase.createClient(
-      "https://zfwjtvnxkylginwlxgto.supabase.co",
-      "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
-    );
-
-    const CREATOR_EMAIL = "etoo50155@gmail.com";
-
-    function isCreator(user){
-      const email = (user?.email || "").toLowerCase();
-      return email === CREATOR_EMAIL.toLowerCase();
-    }
-
-    let greetedCreator = false;
-
-    function githubPagesRedirect(){
-      return "https://spenceai.github.io/SpenceAI/";
-    }
-
-    async function loginWithGoogle(){
-      const { error } = await supabaseAuth.auth.signInWithOAuth({
-        provider:"google",
-        options:{
-          redirectTo: githubPagesRedirect()
-        }
+      const res = await fetch(WORKER_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          messages: apiMessages,
+          imageUrl: imageToSend
+        })
       });
 
-      if(error){
-        console.error("Login error:", error);
-        alert("Login failed. Check Supabase Redirect URLs.");
+      const data = await res.json();
+      const reply = data.reply || "(no reply)";
+
+      c.messages.push({ role:"assistant", content:reply });
+      persistAll();
+
+      waitingBubble.innerHTML = "";
+      await typewriter(waitingBubble, reply, 10);
+    } catch(e){
+      waitingBubble.textContent = "Server error.";
+    } finally {
+      setTypingLock(false);
+
+      attachedImage = null;
+      attachedFileName = "";
+      imagePick.value = "";
+      imgThumb.src = "";
+      imgName.textContent = "";
+      imgChip.style.display = "none";
+      hidePreviewUI();
+    }
+  }
+
+  sendBtn.onclick = () => {
+    if(isTypingNow) requestCancelTyping();
+    else send();
+  };
+
+  input.addEventListener("keydown", e => {
+    if(isTypingNow) return;
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      send();
+    }
+  });
+</script>
+
+<script>
+  const supabaseAuth = window.supabase.createClient(
+    "https://zfwjtvnxkylginwlxgto.supabase.co",
+    "sb_publishable_bbH0izuoD2ymFae_juiIag_UUI-G4Lc"
+  );
+
+  const CREATOR_EMAIL = "etoo50155@gmail.com";
+
+  function isCreator(user){
+    const email = (user?.email || "").toLowerCase();
+    return email === CREATOR_EMAIL.toLowerCase();
+  }
+
+  let greetedCreator = false;
+
+  function githubPagesRedirect(){
+    return "https://spenceai.github.io/SpenceAI/";
+  }
+
+  async function loginWithGoogle(){
+    const { error } = await supabaseAuth.auth.signInWithOAuth({
+      provider:"google",
+      options:{
+        redirectTo: githubPagesRedirect()
       }
+    });
+
+    if(error){
+      console.error("Login error:", error);
+      alert("Login failed. Check Supabase Redirect URLs.");
+    }
+  }
+
+  async function logout(){
+    await supabaseAuth.auth.signOut();
+  }
+
+  async function refreshAuthUI(){
+    const { data, error } = await supabaseAuth.auth.getSession();
+    if(error) console.error("getSession error:", error);
+
+    const session = data?.session || null;
+    const loggedIn = !!session;
+
+    document.body.classList.toggle("logged-in", loggedIn);
+    document.body.classList.toggle("logged-out", !loggedIn);
+
+    authPill.textContent = loggedIn ? "Logged in" : "Logged out";
+    authBtn.textContent = loggedIn ? "Log out" : "Log in";
+
+    if(brandSub){
+      brandSub.textContent = loggedIn ? "Saved chats" : "Log in to view chats";
     }
 
-    async function logout(){
-      await supabaseAuth.auth.signOut();
+    if(loggedIn){
+      switchToPersistentMode();
+    } else {
+      switchToGuestMode();
     }
 
-    async function refreshAuthUI(){
-      const { data, error } = await supabaseAuth.auth.getSession();
-      if(error) console.error("getSession error:", error);
+    return session;
+  }
 
-      const session = data?.session || null;
-      const loggedIn = !!session;
+  async function creatorCheck(){
+    const { data: { session } } = await supabaseAuth.auth.getSession();
+    const user = session?.user;
+    const badge = document.getElementById("creatorBadge");
 
-      document.body.classList.toggle("logged-in", loggedIn);
-      document.body.classList.toggle("logged-out", !loggedIn);
+    if(user && isCreator(user)){
+      if(badge) badge.style.display = "inline-flex";
 
-      authPill.textContent = loggedIn ? "Logged in" : "Logged out";
-      authBtn.textContent = loggedIn ? "Log out" : "Log in";
-
-      if(brandSub){
-        brandSub.textContent = loggedIn ? "Saved chats" : "Log in to view chats";
+      if(localStorage.getItem("spenceai_personality_v1") === "creator"){
+        refreshAllChatSystemPrompts();
       }
 
-      if(loggedIn){
-        switchToPersistentMode();
-      } else {
-        switchToGuestMode();
-      }
+      if(!greetedCreator){
+        greetedCreator = true;
 
-      return session;
-    }
+        const c = getActiveChat();
+        const alreadyHasGreeting = c?.messages?.some(
+          m => m.role === "assistant" && m.content === "Hello Mr. Doakes."
+        );
 
-    async function creatorCheck(){
-      const { data: { session } } = await supabaseAuth.auth.getSession();
-      const user = session?.user;
-      const badge = document.getElementById("creatorBadge");
-
-      if(user && isCreator(user)){
-        if(badge) badge.style.display = "inline-flex";
-
-        if(!greetedCreator){
-          greetedCreator = true;
-
-          const c = getActiveChat();
-          const alreadyHasGreeting = c?.messages?.some(
-            m => m.role === "assistant" && m.content === "Hello Mr. Doakes."
-          );
-
-          if(!alreadyHasGreeting){
-            addBubble("ai", "Hello Mr. Doakes.");
-            c.messages.push({ role:"assistant", content:"Hello Mr. Doakes." });
-            persistAll();
-            renderChatList();
-          }
+        if(!alreadyHasGreeting){
+          addBubble("ai", "Hello Mr. Doakes.");
+          c.messages.push({ role:"assistant", content:"Hello Mr. Doakes." });
+          persistAll();
+          renderChatList();
         }
-      } else {
-        if(badge) badge.style.display = "none";
+      }
+    } else {
+      if(badge) badge.style.display = "none";
+
+      if(localStorage.getItem("spenceai_personality_v1") === "creator"){
+        localStorage.setItem("spenceai_personality_v1", "default");
+        refreshAllChatSystemPrompts();
       }
     }
+  }
 
-    authBtn.addEventListener("click", async () => {
-      const { data } = await supabaseAuth.auth.getSession();
-      if(data?.session) await logout();
-      else await loginWithGoogle();
-    });
+  authBtn.addEventListener("click", async () => {
+    const { data } = await supabaseAuth.auth.getSession();
+    if(data?.session) await logout();
+    else await loginWithGoogle();
+  });
 
-    supabaseAuth.auth.onAuthStateChange(async () => {
-      await refreshAuthUI();
-      await creatorCheck();
-    });
+  supabaseAuth.auth.onAuthStateChange(async () => {
+    await refreshAuthUI();
+    await creatorCheck();
+  });
 
-    window.addEventListener("load", async () => {
-      await refreshAuthUI();
-      await creatorCheck();
-    });
-  </script>
-
-</body>
-</html>
-
+  window.addEventListener("load", async () => {
+    await refreshAuthUI();
+    await creatorCheck();
+  });
+</script>
