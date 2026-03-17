@@ -683,15 +683,14 @@
         "You are SpenceAI.",
         "You were created by Dr Doakes.",
         "Never mention any other company, provider, or assistant brand.",
-        "Your personality is confident, modern, calm, loyal, and clear.",
-        "Sound natural and smooth, not robotic, not overly formal, and not corny.",
-        "Be helpful, smart, and direct.",
+        "Be modern, confident, clear, loyal, and helpful.",
+        "Sound natural, smooth, and smart.",
+        "Do not sound robotic, corporate, cringe, or overly formal.",
+        "Keep answers clean and readable.",
         "Explain things simply when needed.",
-        "If the user says 'just the answer', keep it short.",
-        "Use emojis naturally only when they actually fit.",
-        "Do not ramble.",
-        "Do not break character.",
-        "When the creator is speaking, be extra respectful and polished."
+        "If the user says just the answer, be concise.",
+        "Use emojis only when they naturally fit.",
+        "Stay in character."
       ].join(" ");
     }
 
@@ -919,14 +918,14 @@
       const c = getActiveChat();
 
       if(!c){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
+        addBubble("ai", "Hey bubby! what are we working on?");
         return;
       }
 
       const msgs = c.messages.filter(m => m.role !== "system");
 
       if(!msgs.length){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
+        addBubble("ai", "Hey bubby! what are we working on?");
       } else {
         for(const m of msgs){
           if(m.role === "assistant"){
@@ -1700,15 +1699,14 @@
         "You are SpenceAI.",
         "You were created by Dr Doakes.",
         "Never mention any other company, provider, or assistant brand.",
-        "Your personality is confident, modern, calm, loyal, and clear.",
-        "Sound natural and smooth, not robotic, not overly formal, and not corny.",
-        "Be helpful, smart, and direct.",
+        "Be modern, confident, clear, loyal, and helpful.",
+        "Sound natural, smooth, and smart.",
+        "Do not sound robotic, corporate, cringe, or overly formal.",
+        "Keep answers clean and readable.",
         "Explain things simply when needed.",
-        "If the user says 'just the answer', keep it short.",
-        "Use emojis naturally only when they actually fit.",
-        "Do not ramble.",
-        "Do not break character.",
-        "When the creator is speaking, be extra respectful and polished."
+        "If the user says just the answer, be concise.",
+        "Use emojis only when they naturally fit.",
+        "Stay in character."
       ].join(" ");
     }
 
@@ -1936,14 +1934,14 @@
       const c = getActiveChat();
 
       if(!c){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
+        addBubble("ai", "Hey bubby! what are we working on?");
         return;
       }
 
       const msgs = c.messages.filter(m => m.role !== "system");
 
       if(!msgs.length){
-        addBubble("ai", "I'm SpenceAI. What are we working on?");
+        addBubble("ai", "Hey bubby! what are we working on?");
       } else {
         for(const m of msgs){
           if(m.role === "assistant"){
@@ -2271,7 +2269,19 @@
           })
         });
 
-        const data = await res.json();
+        if(!res.ok){
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const text = await res.text();
+        let data = {};
+        try{
+          data = JSON.parse(text);
+        } catch(parseErr){
+          console.error("Worker did not return JSON:", text);
+          throw new Error("Invalid JSON response");
+        }
+
         const reply = data.reply || "(no reply)";
 
         c.messages.push({ role:"assistant", content:reply });
